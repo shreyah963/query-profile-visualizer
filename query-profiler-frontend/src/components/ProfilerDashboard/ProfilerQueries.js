@@ -32,8 +32,15 @@ const ProfilerQueries = ({
         const collectors = data.profileData.shards[0]?.searches?.[0]?.collector || [];
         const rewriteTime = data.profileData.shards[0]?.searches?.[0]?.rewrite_time || 0;
         
-        // Get aggregation data
-        const aggregations = data.profileData.shards[0]?.searches?.[0]?.aggregations || [];
+        // Get aggregation data - check both search level and shard level
+        const searchAggregations = data.profileData.shards[0]?.searches?.[0]?.aggregations || [];
+        const shardAggregations = data.profileData.shards[0]?.aggregations || [];
+        // Combine both sources of aggregations
+        const aggregations = [...searchAggregations, ...shardAggregations];
+        
+        console.debug('[ProfilerQueries] Aggregations found:', aggregations.length);
+        console.debug('[ProfilerQueries] Search aggregations:', searchAggregations.length);
+        console.debug('[ProfilerQueries] Shard aggregations:', shardAggregations.length);
         
         // Calculate total query time including rewrite time, collectors, and aggregations
         const totalQueryTimeNanos = 
@@ -45,51 +52,70 @@ const ProfilerQueries = ({
         // Transform queries with proper hierarchy preserved
         const transformedQueries = queries.map((q, index) => transformQueryWithChildren(q, index, totalQueryTimeNanos));
         
+        // Add rewrite time as a separate query group if it's significant
+        if (rewriteTime > 0) {
+          transformedQueries.push({
+            id: 'query-rewrite-group',
+            queryName: 'Query Rewrite',
+            type: 'QueryRewrite',
+            description: 'Time spent rewriting and optimizing the query before execution',
+            operation: 'Query rewriting phase',
+            totalDuration: rewriteTime / 1000000,
+            time_ms: rewriteTime / 1000000,
+            percentage: (rewriteTime / totalQueryTimeNanos) * 100,
+            children: []
+          });
+        }
+
         // Add collector data as a separate "query" group
         if (collectors.length > 0) {
+          // Create a function to recursively process collector children
+          const processCollectorChildren = (collector, totalQueryTimeNanos) => {
+            const result = {
+              name: collector.name,
+              reason: collector.reason,
+              time_ms: collector.time_in_nanos / 1000000,
+              percentage: (collector.time_in_nanos / totalQueryTimeNanos) * 100
+            };
+            
+            // Process children if they exist
+            if (collector.children && collector.children.length > 0) {
+              result.children = collector.children.map(child => 
+                processCollectorChildren(child, totalQueryTimeNanos)
+              );
+            }
+            
+            return result;
+          };
+          
           transformedQueries.push({
             id: `collector-group`,
             queryName: 'Query Collectors',
             type: 'Collectors',
             description: 'Collection phase of the query execution',
             operation: 'Collection phase',
-            totalDuration: rewriteTime / 1000000 + collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0) / 1000000,
-            time_ms: rewriteTime / 1000000 + collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0) / 1000000,
-            percentage: (rewriteTime + collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0)) / totalQueryTimeNanos * 100,
-            children: collectors.map((c, i) => ({
-              id: `collector-${i}`,
-              queryName: c.name,
-              type: c.name,
-              description: c.reason || 'Collector phase',
-              operation: c.reason || 'Collector operation',
-              totalDuration: c.time_in_nanos / 1000000,
-              time_ms: c.time_in_nanos / 1000000,
-              percentage: (c.time_in_nanos / totalQueryTimeNanos) * 100
-            })).concat([{
-              id: 'rewrite-time',
-              queryName: 'Query Rewrite',
-              type: 'QueryRewrite',
-              description: 'Time spent rewriting the query',
-              operation: 'Query rewriting',
-              totalDuration: rewriteTime / 1000000,
-              time_ms: rewriteTime / 1000000,
-              percentage: (rewriteTime / totalQueryTimeNanos) * 100
-            }])
+            totalDuration: collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0) / 1000000,
+            time_ms: collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0) / 1000000,
+            percentage: collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0) / totalQueryTimeNanos * 100,
+            // Process collector data including children
+            collectorData: collectors.map(c => processCollectorChildren(c, totalQueryTimeNanos)),
+            children: []
           });
         }
 
         // Add aggregation data as a separate group
         if (aggregations.length > 0) {
-          transformedQueries.push({
-            id: 'aggregation-group',
-            queryName: 'Aggregations',
-            type: 'Aggregations',
-            description: 'Aggregation phase of the query execution',
-            operation: 'Aggregation phase',
-            totalDuration: aggregations.reduce((sum, a) => sum + (a.time_in_nanos || 0), 0) / 1000000,
-            time_ms: aggregations.reduce((sum, a) => sum + (a.time_in_nanos || 0), 0) / 1000000,
-            percentage: aggregations.reduce((sum, a) => sum + (a.time_in_nanos || 0), 0) / totalQueryTimeNanos * 100,
-            children: aggregations.map((agg, i) => transformAggregation(agg, i, totalQueryTimeNanos))
+          // Calculate total aggregation time
+          const totalAggTime = aggregations.reduce((sum, a) => sum + (a.time_in_nanos || 0), 0);
+          
+          // Skip the aggregation group header and just add individual entries
+          // Add each aggregation as its own top-level item
+          aggregations.forEach((agg, i) => {
+            const transformedAgg = transformAggregation(agg, i, totalQueryTimeNanos);
+            transformedAgg.id = `aggregation-${agg.type || 'unknown'}-${i}`;
+            transformedAgg.type = 'AggregationType'; // Special type to identify individual aggregation types
+            transformedAgg.operation = `${agg.description || agg.type} (Aggregation)`;
+            transformedQueries.push(transformedAgg);
           });
         }
         
@@ -104,10 +130,43 @@ const ProfilerQueries = ({
     const transformAggregation = (agg, index, totalQueryTimeNanos) => {
       // Format breakdown for better visualization
       const formattedBreakdown = {};
+      const rawBreakdown = agg.breakdown || {};
       
       if (agg.breakdown) {
+        // Group related operations for visualization
+        const breakdownGroups = {
+          'build_aggregation': ['build_aggregation', 'build_aggregation_count'],
+          'collect': ['collect', 'collect_count'],
+          'initialize': ['initialize', 'initialize_count'],
+          'post_collection': ['post_collection', 'post_collection_count'],
+          'reduce': ['reduce', 'reduce_count'],
+          'build_leaf_collector': ['build_leaf_collector', 'build_leaf_collector_count'],
+        };
+        
+        // Create a more structured breakdown
+        Object.entries(breakdownGroups).forEach(([groupKey, keys]) => {
+          // Only add the group if at least one key has a non-zero value
+          if (keys.some(key => agg.breakdown[key] > 0)) {
+            formattedBreakdown[groupKey] = keys.reduce((sum, key) => {
+              // If key ends with '_count', don't add to time
+              if (key.endsWith('_count')) return sum;
+              return sum + (agg.breakdown[key] || 0);
+            }, 0);
+          }
+        });
+        
+        // Process all breakdown fields to ensure we don't miss any
         Object.entries(agg.breakdown).forEach(([key, value]) => {
-          if (typeof value === 'number' && value > 0) {
+          // Skip count fields as they are not time measurements
+          if (key.endsWith('_count')) return;
+          
+          // Check if this key is already part of a group we've processed
+          const isInGroup = Object.values(breakdownGroups).some(
+            groupKeys => groupKeys.includes(key)
+          );
+          
+          // If not in a group and has a positive value, add it directly
+          if (!isInGroup && typeof value === 'number' && value > 0) {
             formattedBreakdown[key] = value;
           }
         });
@@ -128,7 +187,7 @@ const ProfilerQueries = ({
         time_ms: agg.time_in_nanos ? (agg.time_in_nanos / 1000000) : 0,
         percentage: agg.time_in_nanos ? (agg.time_in_nanos / totalQueryTimeNanos) * 100 : 0,
         breakdown: formattedBreakdown,
-        rawBreakdown: agg.breakdown || {},
+        rawBreakdown: rawBreakdown,
         children: transformedChildren
       };
     };
@@ -161,6 +220,22 @@ const ProfilerQueries = ({
               if (key.endsWith('_count')) return sum;
               return sum + (query.breakdown[key] || 0);
             }, 0);
+          }
+        });
+        
+        // Process all breakdown fields to ensure we don't miss any
+        Object.entries(query.breakdown).forEach(([key, value]) => {
+          // Skip count fields as they are not time measurements
+          if (key.endsWith('_count')) return;
+          
+          // Check if this key is already part of a group we've processed
+          const isInGroup = Object.values(breakdownGroups).some(
+            groupKeys => groupKeys.includes(key)
+          );
+          
+          // If not in a group and has a positive value, add it directly
+          if (!isInGroup && typeof value === 'number' && value > 0) {
+            formattedBreakdown[key] = value;
           }
         });
       }
@@ -215,11 +290,26 @@ const ProfilerQueries = ({
           queries: sortedQueries,
           totalDuration: sortedQueries.reduce((sum, q) => sum + q.totalDuration, 0),
           count: sortedQueries.length,
+          // Use type to determine sort order
+          type: sortedQueries[0]?.type || ''
         };
       });
 
-      // Sort groups by total duration
-      return result.sort((a, b) => b.totalDuration - a.totalDuration);
+      // Sort groups by type first, then by total duration
+      return result.sort((a, b) => {
+        // Order: 1. Regular queries, 2. Query Rewrite, 3. Aggregation Types, 4. Collectors
+        if (a.type === 'Collectors' && b.type !== 'Collectors') return 1;
+        if (a.type !== 'Collectors' && b.type === 'Collectors') return -1;
+        
+        if (a.type === 'AggregationType' && b.type !== 'AggregationType' && b.type !== 'Collectors') return 1;
+        if (a.type !== 'AggregationType' && a.type !== 'Collectors' && b.type === 'AggregationType') return -1;
+        
+        if (a.type === 'QueryRewrite' && b.type !== 'QueryRewrite' && b.type !== 'AggregationType' && b.type !== 'Collectors') return 1;
+        if (a.type !== 'QueryRewrite' && a.type !== 'AggregationType' && a.type !== 'Collectors' && b.type === 'QueryRewrite') return -1;
+        
+        // Within each category, sort by duration
+        return b.totalDuration - a.totalDuration;
+      });
     } catch (err) {
       console.error('[ProfilerQueries] Error processing query data:', err);
       return [];
@@ -231,18 +321,27 @@ const ProfilerQueries = ({
     const processed = processQueryData(data);
     setProcessedData(processed);
 
+    // Create a new expanded state object
+    const newExpandedState = { ...expandedQueries };
+    
     // Auto-expand the first group if it exists
     if (processed.length > 0) {
       const firstGroupName = processed[0].name;
       console.debug(`[ProfilerQueries] Auto-expanding first group: ${firstGroupName}`);
-      
-      setExpandedQueries(prev => {
-        if (!prev[firstGroupName]) {
-          return { ...prev, [firstGroupName]: true };
-        }
-        return prev;
-      });
+      newExpandedState[firstGroupName] = true;
     }
+    
+    // Always auto-expand important sections: QueryRewrite, Collectors, and Aggregations
+    processed.forEach(group => {
+      const queryType = group.queries[0]?.type || '';
+      if (queryType === 'QueryRewrite' || queryType === 'Collectors' || 
+          queryType === 'Aggregations' || queryType === 'AggregationType') {
+        console.debug(`[ProfilerQueries] Auto-expanding special group: ${group.name}`);
+        newExpandedState[group.name] = true;
+      }
+    });
+    
+    setExpandedQueries(newExpandedState);
   }, [data, processQueryData]);
 
   // Force expand a specific query
@@ -282,10 +381,16 @@ const ProfilerQueries = ({
   const handleQuerySelect = (query) => {
     console.debug('[ProfilerQueries] Selecting query:', query.id);
     try {
+      // Prepare the query with original query data
       const enhancedQuery = {
         ...query,
         originalQueryData: data.originalQueryData || null
       };
+
+      // Special handling for aggregation type
+      if (query.type === 'Aggregations') {
+        console.debug('[ProfilerQueries] Selected an aggregation group with children:', query.children?.length || 0);
+      }
 
       if (compareMode && !selectedProfile) {
         setSelectedProfile(enhancedQuery);
@@ -328,59 +433,156 @@ const ProfilerQueries = ({
   return (
     <div className="profiler-queries">
       <div className="queries-list">
-        {processedData.map((group) => (
-          <div key={group.name} className="query-group">
+        {processedData.map((group) => {
+          // Determine query type from either the group name or first query
+          const queryType = group.queries[0]?.type || 
+                           (group.name === 'Query Rewrite' ? 'QueryRewrite' : 
+                           (group.name === 'Query Collectors' ? 'Collectors' : 
+                           group.queries[0]?.queryName || ''));
+          
+          // Check if this is an aggregation type
+          const isAggregationType = queryType === 'AggregationType';
+          
+          // Skip rendering individual aggregation types here, they'll be grouped under Aggregations section
+          if (isAggregationType) {
+            return null;
+          }
+          
+          return (
             <div 
-              className="query-item"
-              onClick={() => handleToggleExpand(group.name)}
+              key={group.name} 
+              className="query-group"
+              data-type={queryType}
+              data-name={group.name}
             >
-              <div className="query-header">
-                <button 
-                  className="expand-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleToggleExpand(group.name);
-                  }}
-                  data-expanded={expandedQueries[group.name] ? "true" : "false"}
-                  aria-label={expandedQueries[group.name] ? "Collapse query" : "Expand query"}
-                >
-                  {expandedQueries[group.name] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                </button>
-                <div className="query-name">
-                  <span className="bullet">•</span>
-                  {group.name}
+              <div 
+                className="query-item"
+                onClick={() => handleToggleExpand(group.name)}
+              >
+                <div className="query-header">
+                  <button 
+                    className="expand-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleExpand(group.name);
+                    }}
+                    data-expanded={expandedQueries[group.name] ? "true" : "false"}
+                    aria-label={expandedQueries[group.name] ? "Collapse query" : "Expand query"}
+                  >
+                    {expandedQueries[group.name] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  </button>
+                  <div className="query-name">
+                    <span className="bullet">•</span>
+                    {group.name}
+                  </div>
+                </div>
+                <div className="query-metrics">
+                  <div className="metric">{group.count} calls</div>
+                  <div className="metric">{formatDuration(group.totalDuration)}</div>
                 </div>
               </div>
-              <div className="query-metrics">
-                <div className="metric">{group.count} calls</div>
-                <div className="metric">{formatDuration(group.totalDuration)}</div>
-              </div>
-            </div>
             
-            {expandedQueries[group.name] && (
+              {expandedQueries[group.name] && (
+                <div 
+                  className="query-children"
+                  data-expanded={newlyExpandedId === group.name ? "new" : "true"}
+                >
+                  {group.queries.map((query) => (
+                    <div
+                      key={query.id}
+                      className={`query-child ${selectedProfile && selectedProfile.id === query.id ? 'selected' : ''}`}
+                      onClick={() => handleQuerySelect(query)}
+                      data-query-type={query.type || query.queryName || ''}
+                    >
+                      <div className="query-header">
+                        <div className="query-indent"></div>
+                        <div className="query-name">{query.operation || 'Query Instance'}</div>
+                      </div>
+                      <div className="query-metrics">
+                        <div className="metric">{formatDuration(query.totalDuration)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        
+        {/* Create a single Aggregations parent section */}
+        {(() => {
+          // Filter out just the aggregation type groups
+          const aggregationGroups = processedData.filter(group => 
+            group.queries[0]?.type === 'AggregationType'
+          );
+          
+          // Only render if we have aggregation types
+          if (aggregationGroups.length === 0) return null;
+          
+          // Calculate total duration and count for all aggregation types
+          const totalAggDuration = aggregationGroups.reduce((sum, group) => sum + group.totalDuration, 0);
+          const totalAggCount = aggregationGroups.reduce((sum, group) => sum + group.count, 0);
+          
+          return (
+            <div 
+              key="aggregations-parent" 
+              className="query-group"
+              data-type="Aggregations"
+              data-name="Aggregations"
+            >
               <div 
-                className="query-children"
-                data-expanded={newlyExpandedId === group.name ? "new" : "true"}
+                className="query-item"
+                onClick={() => handleToggleExpand("Aggregations")}
               >
-                {group.queries.map((query) => (
-                  <div
-                    key={query.id}
-                    className={`query-child ${selectedProfile && selectedProfile.id === query.id ? 'selected' : ''}`}
-                    onClick={() => handleQuerySelect(query)}
+                <div className="query-header">
+                  <button 
+                    className="expand-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleExpand("Aggregations");
+                    }}
+                    data-expanded={expandedQueries["Aggregations"] ? "true" : "false"}
+                    aria-label={expandedQueries["Aggregations"] ? "Collapse aggregations" : "Expand aggregations"}
                   >
-                    <div className="query-header">
-                      <div className="query-indent"></div>
-                      <div className="query-name">{query.operation || 'Query Instance'}</div>
-                    </div>
-                    <div className="query-metrics">
-                      <div className="metric">{formatDuration(query.totalDuration)}</div>
-                    </div>
+                    {expandedQueries["Aggregations"] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  </button>
+                  <div className="query-name">
+                    <span className="bullet">•</span>
+                    Aggregations
                   </div>
-                ))}
+                </div>
+                <div className="query-metrics">
+                  <div className="metric">{aggregationGroups.length} types</div>
+                  <div className="metric">{formatDuration(totalAggDuration)}</div>
+                </div>
               </div>
-            )}
-          </div>
-        ))}
+            
+              {expandedQueries["Aggregations"] && (
+                <div 
+                  className="query-children"
+                  data-expanded={newlyExpandedId === "Aggregations" ? "new" : "true"}
+                >
+                  {aggregationGroups.map((group) => (
+                    <div
+                      key={group.name}
+                      className={`query-child ${selectedProfile && selectedProfile.id === group.queries[0].id ? 'selected' : ''}`}
+                      onClick={() => handleQuerySelect(group.queries[0])}
+                      data-query-type={group.queries[0].type || group.queries[0].queryName || ''}
+                    >
+                      <div className="query-header">
+                        <div className="query-indent"></div>
+                        <div className="query-name">{group.name}</div>
+                      </div>
+                      <div className="query-metrics">
+                        <div className="metric">{formatDuration(group.totalDuration)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
       
       {/* Hidden debug info */}

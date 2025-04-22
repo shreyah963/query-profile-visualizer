@@ -19,17 +19,18 @@
   overflow: hidden;
 }
 
-.query-item {
+.query-group .query-item {
   display: flex;
   justify-content: space-between;
   padding: 0.5rem;
   cursor: pointer;
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
   transition: background-color 0.2s;
+  border-left: 3px solid #cbd5e1;
 }
 
 .query-item:hover {
-  background-color: #e8e8e8;
+  background-color: #f1f5f9;
 }
 
 .query-item.selected {
@@ -82,10 +83,11 @@
 }
 
 .query-name {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 500;
   display: flex;
   align-items: center;
+  color: #1e293b;
 }
 
 .bullet {
@@ -101,12 +103,14 @@
 }
 
 .metric {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-family: monospace;
-  padding: 2px 6px;
-  background-color: #eee;
+  font-weight: 600;
+  padding: 3px 8px;
+  background-color: #f0f5ff;
   border-radius: 4px;
-  color: #666;
+  color: #3b82f6;
+  border: 1px solid #e0e8ff;
 }
 
 .query-children {
@@ -151,6 +155,8 @@
 
 .query-child.selected {
   background-color: #e3f2fd;
+  border-left: 3px solid #3b82f6;
+  font-weight: 500;
 }
 
 .query-indent {
@@ -204,4 +210,103 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   z-index: 100;
   max-width: 300px;
+}
+
+/* Query Rewrite section styling */
+.query-group[data-type="QueryRewrite"] .query-item {
+  background-color: #f0f9ff;
+  border-left: 3px solid #3b82f6;
+}
+
+.query-group[data-type="QueryRewrite"] .query-name .bullet {
+  color: #3b82f6;
+}
+
+/* Collectors section styling */
+.query-group[data-type="Collectors"] .query-item {
+  background-color: #f0f9ff;
+  border-left: 3px solid #3b82f6;
+}
+
+.query-group[data-type="Collectors"] .query-name .bullet {
+  color: #3b82f6;
+}
+
+/* ConstantScoreQuery styling */
+.query-group[data-type="ConstantScoreQuery"] .query-item {
+  background-color: #f0f9ff;
+  border-left: 3px solid #3b82f6;
+}
+
+.query-group[data-type="ConstantScoreQuery"] .query-name .bullet {
+  color: #3b82f6;
+}
+
+/* Query Group Types
+   Special styling for different query types */
+
+.query-group[data-type="QueryRewrite"] .query-name {
+  color: #0288d1;
+}
+
+.query-group[data-type="QueryRewrite"] .bullet {
+  color: #0288d1;
+}
+
+.query-group[data-type="Collectors"] .query-name {
+  color: #7cb342;
+}
+
+.query-group[data-type="Collectors"] .bullet {
+  color: #7cb342;
+}
+
+.query-group[data-type="Aggregations"] .query-item {
+  background-color: #e0f7fa;
+  border-left: 3px solid #00acc1;
+}
+
+.query-group[data-type="Aggregations"] .expand-btn[data-expanded="true"] {
+  background: #80deea;
+  color: #006064;
+}
+
+.query-group[data-type="Aggregations"] .expand-btn[data-expanded="true"]:hover {
+  background: #4dd0e1;
+}
+
+.query-group[data-type="Aggregations"] .query-metrics .metric {
+  background-color: #e0f7fa;
+  color: #00838f;
+  border: 1px solid #b2ebf2;
+}
+
+.query-group[data-type="Aggregations"] .query-name {
+  color: #00acc1;
+}
+
+.query-group[data-type="Aggregations"] .bullet {
+  color: #00acc1;
+}
+
+/* Aggregation type styling */
+.query-group[data-type="AggregationType"] .query-item {
+  background-color: #e0f2f1;
+  border-left: 3px solid #26a69a;
+  margin-left: 12px; /* Indent to show it's related to Aggregations */
+  width: calc(100% - 12px);
+}
+
+.query-group[data-type="AggregationType"] .query-name {
+  color: #00897b;
+}
+
+.query-group[data-type="AggregationType"] .bullet {
+  color: #26a69a;
+}
+
+.query-group[data-type="AggregationType"] .query-metrics .metric {
+  background-color: #e0f2f1;
+  color: #00796b;
+  border: 1px solid #b2dfdb;
 } 
