@@ -381,10 +381,14 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
   // Get the query intent label
   const queryIntentLabel = getQueryIntentLabel();
   
-  // Check if this is a collector type or query rewrite that doesn't have breakdown data
-  const isCollector = queryType === 'Collectors' || queryIntentLabel === 'Query Collectors';
+  // Check if there are aggregations available
+  const hasAggregations = aggregations && aggregations.length > 0;
+  
+  // Define query type flags
   const isConstantScore = queryType === 'ConstantScoreQuery' || query.queryName === 'ConstantScoreQuery';
-  const isQueryRewrite = (queryType === 'QueryRewrite' || queryIntentLabel === 'Query Rewrite') && !isConstantScore;
+  const isQueryRewrite = (queryType === 'QueryRewrite' || queryIntentLabel === 'Query Rewrite') && 
+                         !isConstantScore; // Ensure ConstantScoreQuery isn't treated as a QueryRewrite
+  const isCollector = queryType === 'Collectors' || queryIntentLabel === 'Query Collectors';
   const isAggregationType = query.type === 'AggregationType' || 
                            query.queryName?.includes('Aggregator') ||
                            (query.queryName && query.queryName !== 'Aggregations' && query.type !== 'Aggregations' && 
@@ -406,9 +410,6 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
       }
     });
   }
-  
-  // Check if there are aggregations available
-  const hasAggregations = aggregations && aggregations.length > 0;
   
   // Get collector data if this is the Query Collectors section
   const hasCollectorData = isCollector && query.collectorData && query.collectorData.length > 0;
