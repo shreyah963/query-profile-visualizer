@@ -186,34 +186,39 @@
 }
 
 .breakdown-item {
-  display: flex;
-  align-items: center;
-  padding: 0.5rem 0;
-  gap: 0.75rem;
+  margin-bottom: 8px;
 }
 
 .breakdown-label {
   display: flex;
   justify-content: space-between;
-  width: 40%;
-  min-width: 250px;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .breakdown-label span:first-child {
-  font-size: 0.9rem;
-  color: #475569;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   flex: 1;
+  margin-right: 10px;
+  word-break: break-word;
 }
 
 .breakdown-time {
-  font-family: monospace;
-  font-size: 0.9rem;
   font-weight: 500;
-  text-align: right;
-  min-width: 90px;
+  white-space: nowrap;
+}
+
+/* Style for query types in parentheses */
+.breakdown-label span:first-child {
+  position: relative;
+}
+
+/* Make the query types slightly different color */
+span.query-type {
+  color: #666;
+  font-size: 0.9em;
+  font-style: italic;
 }
 
 .breakdown-bar-container {
@@ -297,21 +302,21 @@
 .raw-breakdown-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
 }
 
 .raw-breakdown-table th {
+  background-color: #f5f5f5;
   position: sticky;
   top: 0;
-  background-color: #f1f5f9;
   z-index: 1;
-  font-weight: 600;
-  color: #334155;
-  border-bottom: 2px solid #cbd5e1;
+}
+
+.raw-breakdown-table tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 .raw-breakdown-table tr:hover {
-  background-color: #f1f5f9;
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .raw-breakdown-table th,
@@ -776,12 +781,6 @@
 }
 
 /* Add consistent margin between breakdown items */
-.breakdown-item {
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #f1f5f9;
-}
-
 .breakdown-item:last-child {
   margin-bottom: 0;
   padding-bottom: 0;

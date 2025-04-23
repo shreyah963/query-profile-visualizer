@@ -111,4 +111,199 @@
   text-align: center;
   color: #888;
   font-size: 16px;
+}
+
+/* Add styles for the dual query comparison mode */
+.dual-query-mode {
+  background-color: #f9f9f9;
+  min-height: 100vh;
+}
+
+.dual-query-container {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+}
+
+.query-column {
+  flex: 1;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+.query-column h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dual-query-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f0f4fa;
+  border-radius: 8px;
+}
+
+.compare-profiles-btn {
+  padding: 12px 24px;
+  background-color: #4a6da7;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 10px;
+  min-width: 200px;
+}
+
+.compare-profiles-btn:hover {
+  background-color: #3a5a8f;
+}
+
+.compare-profiles-btn:disabled {
+  background-color: #a0aec0;
+  cursor: not-allowed;
+}
+
+.query-error {
+  background-color: #fef2f2;
+  border-left: 4px solid #ef4444;
+  color: #b91c1c;
+  padding: 10px 15px;
+  margin-bottom: 15px;
+  border-radius: 4px;
+  width: 100%;
+  font-size: 14px;
+}
+
+.inline-comparison-results {
+  margin-top: 30px;
+  width: 100%;
+}
+
+.dual-query-textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 200px;
+}
+
+.exit-dual-mode-btn {
+  padding: 8px 16px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.exit-dual-mode-btn:hover {
+  background-color: #d32f2f;
+}
+
+.dual-query-btn {
+  background-color: #673ab7;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+.dual-query-btn:hover {
+  background-color: #5e35b1;
+}
+
+.query-textarea-container {
+  width: 100%;
+  position: relative;
+}
+
+.query-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 240px;
+  background-color: #f8f9fc;
+  transition: border-color 0.2s;
+}
+
+.query-textarea:focus {
+  outline: none;
+  border-color: #4a6da7;
+  box-shadow: 0 0 0 2px rgba(74, 109, 167, 0.2);
+}
+
+/* Add styles for template selectors in dual query mode */
+.template-selector {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 0 5px;
+}
+
+.template-selector label {
+  margin-right: 10px;
+  font-weight: 500;
+  font-size: 14px;
+  color: #333;
+}
+
+.template-selector .template-dropdown {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+  max-width: 300px;
+}
+
+.template-selector .template-dropdown:hover {
+  border-color: #aab4be;
+}
+
+.template-selector .template-dropdown:focus {
+  border-color: #4a6ee0;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 110, 224, 0.25);
+}
+
+@media (max-width: 768px) {
+  .template-selector {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .template-selector label {
+    margin-bottom: 5px;
+  }
+  
+  .template-selector .template-dropdown {
+    max-width: 100%;
+    width: 100%;
+  }
 } 

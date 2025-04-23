@@ -1,24 +1,153 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProfilerSummary from './ProfilerSummary';
 import ProfilerQueries from './ProfilerQueries';
 import QueryInput from './QueryInput';
+import ProfilerComparisonResults from './ProfilerComparisonResults';
 import './ProfilerDashboard.css';
+
+// Define query templates - consistent with the ones in QueryInput.js and ProfilerComparisonResults.js
+const queryTemplates = {
+  default: {
+    query: {
+      match_all: {}
+    }
+  },
+  term_query: {
+    query: {
+      term: {
+        "process.name": "cron"
+      }
+    }
+  },
+  bool_query: {
+    query: {
+      bool: {
+        must: [
+          { match: { "process.name": "cron" } }
+        ],
+        should: [
+          { match: { tags: "preserve_original_event" } },
+          { match: { "input.type": "aws-cloudwatch" } }
+        ],
+        minimum_should_match: 1
+      }
+    },
+    sort: [
+      { "@timestamp": { order: "desc" } }
+    ]
+  },
+  aggregation_query: {
+    query: {
+      match_all: {}
+    },
+    aggs: {
+      process_names: {
+        terms: {
+          field: "process.name.keyword",
+          size: 10
+        }
+      },
+      avg_metrics: {
+        avg: {
+          field: "metrics.size"
+        }
+      }
+    }
+  },
+  complex_query: {
+    query: {
+      bool: {
+        must: [
+          {
+            range: {
+              "@timestamp": {
+                gte: "2023-01-01",
+                lte: "now"
+              }
+            }
+          },
+          {
+            bool: {
+              should: [
+                { term: { "process.name": "cron" } },
+                { term: { "process.name": "systemd" } }
+              ],
+              minimum_should_match: 1
+            }
+          }
+        ],
+        must_not: [
+          { term: { "cloud.region": "eu-west-1" } }
+        ],
+        filter: [
+          { exists: { field: "metrics.size" } }
+        ]
+      }
+    },
+    aggs: {
+      processes_by_region: {
+        terms: {
+          field: "cloud.region.keyword",
+          size: 5
+        },
+        aggs: {
+          process_types: {
+            terms: {
+              field: "process.name.keyword",
+              size: 5
+            }
+          }
+        }
+      }
+    },
+    sort: [
+      { "metrics.size": { order: "desc" } }
+    ]
+  }
+};
 
 const ProfilerDashboard = ({ data, updateData }) => {
   const [selectedProfile, setSelectedProfile] = useState(null);
-  const [compareMode, setCompareMode] = useState(false);
   const [profileToCompare, setProfileToCompare] = useState(null);
-
-  if (!data) {
-    return <div className="no-data">No profiling data available</div>;
-  }
-
-  const handleCompare = () => {
-    setCompareMode(!compareMode);
-    if (!compareMode) {
-      setProfileToCompare(null);
+  const [showComparisonResults, setShowComparisonResults] = useState(false);
+  const [comparisonType, setComparisonType] = useState('detailed');
+  const [showDualQueryInput, setShowDualQueryInput] = useState(false);
+  const [query1, setQuery1] = useState(null);
+  const [query2, setQuery2] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [queryError, setQueryError] = useState(null);
+  const [inlineComparisonResults, setInlineComparisonResults] = useState(false);
+  const [query1Template, setQuery1Template] = useState('default');
+  const [query2Template, setQuery2Template] = useState('default');
+  
+  // Update query text when template changes
+  const updateQueryFromTemplate = (templateName, queryId) => {
+    if (templateName && queryTemplates[templateName]) {
+      const templateText = JSON.stringify(queryTemplates[templateName], null, 2);
+      const queryInput = document.getElementById(queryId);
+      if (queryInput) {
+        queryInput.value = templateText;
+      }
     }
   };
+
+  // Handle template selection for Query 1
+  const handleQuery1TemplateChange = (e) => {
+    const templateName = e.target.value;
+    setQuery1Template(templateName);
+    updateQueryFromTemplate(templateName, 'query1-input');
+  };
+
+  // Handle template selection for Query 2
+  const handleQuery2TemplateChange = (e) => {
+    const templateName = e.target.value;
+    setQuery2Template(templateName);
+    updateQueryFromTemplate(templateName, 'query2-input');
+  };
+  
+  if (!data && !showDualQueryInput) {
+    return <div className="no-data">No profiling data available</div>;
+  }
 
   // Handle custom query execution
   const handleQueryExecuted = (newQueryData) => {
@@ -29,6 +158,91 @@ const ProfilerDashboard = ({ data, updateData }) => {
     // Reset selection when a new query is executed
     setSelectedProfile(null);
     setProfileToCompare(null);
+  };
+
+  const handleDualQueryComparison = () => {
+    setShowDualQueryInput(true);
+    setInlineComparisonResults(false);
+    setQueryError(null);
+  };
+
+  const executeAndCompareQueries = async () => {
+    setIsLoading(true);
+    setQueryError(null);
+    
+    try {
+      // Get query inputs from the DOM
+      const query1Input = document.getElementById('query1-input');
+      const query2Input = document.getElementById('query2-input');
+      
+      if (!query1Input || !query2Input) {
+        throw new Error('Query input elements not found');
+      }
+      
+      const query1Text = query1Input.value.trim();
+      const query2Text = query2Input.value.trim();
+      
+      if (!query1Text || !query2Text) {
+        throw new Error('Both query inputs must be filled');
+      }
+      
+      // Parse both queries
+      let parsedQuery1, parsedQuery2;
+      try {
+        parsedQuery1 = JSON.parse(query1Text);
+        parsedQuery2 = JSON.parse(query2Text);
+      } catch (e) {
+        throw new Error('Invalid JSON in one or both queries: ' + e.message);
+      }
+      
+      // Execute both queries in parallel
+      const [result1, result2] = await Promise.all([
+        fetch('http://localhost:5000/api/execute-query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: parsedQuery1 })
+        }).then(res => res.json()),
+        
+        fetch('http://localhost:5000/api/execute-query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: parsedQuery2 })
+        }).then(res => res.json())
+      ]);
+      
+      // Store results and display comparison
+      setQuery1(result1);
+      setQuery2(result2);
+      setSelectedProfile(result1);
+      setProfileToCompare(result2);
+      setInlineComparisonResults(true);
+      
+    } catch (error) {
+      console.error('Error executing comparison:', error);
+      setQueryError(error.message || 'Failed to execute queries');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleQuery1Executed = (queryData) => {
+    setQuery1(queryData);
+  };
+
+  const handleQuery2Executed = (queryData) => {
+    setQuery2(queryData);
+  };
+
+  const exitDualQueryMode = () => {
+    setShowDualQueryInput(false);
+    setInlineComparisonResults(false);
+    setQuery1(null);
+    setQuery2(null);
+    setQueryError(null);
+  };
+
+  const closeInlineComparison = () => {
+    setInlineComparisonResults(false);
   };
 
   // Extract execution time information
@@ -102,6 +316,135 @@ const ProfilerDashboard = ({ data, updateData }) => {
   
   const hitsInfo = extractHitsInfo();
 
+  // Handle template query execution from comparison modal
+  const handleExecuteTemplateQueries = (templateQuery) => {
+    setShowDualQueryInput(true);
+    setInlineComparisonResults(false);
+    setShowComparisonResults(false);
+    
+    // Find the query input elements
+    setTimeout(() => {
+      const query1Input = document.getElementById('query1-input');
+      const query2Input = document.getElementById('query2-input');
+      
+      if (query1Input && query2Input) {
+        // Set both inputs to the same template query
+        query1Input.value = templateQuery;
+        query2Input.value = templateQuery;
+        
+        // Try to find the template name to update the dropdowns
+        const templateName = Object.keys(queryTemplates).find(
+          name => JSON.stringify(queryTemplates[name], null, 2) === templateQuery
+        );
+        
+        if (templateName) {
+          setQuery1Template(templateName);
+          setQuery2Template(templateName);
+          
+          // Update the select dropdowns if they exist
+          const query1Select = document.getElementById('query1-template');
+          const query2Select = document.getElementById('query2-template');
+          
+          if (query1Select) query1Select.value = templateName;
+          if (query2Select) query2Select.value = templateName;
+        }
+      }
+    }, 100);
+  };
+
+  // Render dual query comparison UI
+  if (showDualQueryInput) {
+    return (
+      <div className="profiler-dashboard dual-query-mode">
+        <header className="dashboard-header">
+          <h1>Query Comparison Mode</h1>
+          <button className="exit-dual-mode-btn" onClick={exitDualQueryMode}>
+            Exit Comparison Mode
+          </button>
+        </header>
+
+        <div className="dual-query-container">
+          <div className="query-column">
+            <h2>Query 1</h2>
+            <div className="template-selector">
+              <label htmlFor="query1-template">Template:</label>
+              <select 
+                id="query1-template"
+                value={query1Template}
+                onChange={handleQuery1TemplateChange}
+                className="template-dropdown"
+              >
+                {Object.keys(queryTemplates).map(template => (
+                  <option key={template} value={template}>
+                    {template.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="query-textarea-container">
+              <textarea
+                id="query1-input"
+                placeholder="Enter your first query in JSON format"
+                rows={10}
+                className="query-textarea"
+                defaultValue={JSON.stringify(queryTemplates[query1Template], null, 2)}
+              />
+            </div>
+          </div>
+          <div className="query-column">
+            <h2>Query 2</h2>
+            <div className="template-selector">
+              <label htmlFor="query2-template">Template:</label>
+              <select 
+                id="query2-template"
+                value={query2Template}
+                onChange={handleQuery2TemplateChange}
+                className="template-dropdown"
+              >
+                {Object.keys(queryTemplates).map(template => (
+                  <option key={template} value={template}>
+                    {template.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="query-textarea-container">
+              <textarea
+                id="query2-input"
+                placeholder="Enter your second query in JSON format"
+                rows={10}
+                className="query-textarea"
+                defaultValue={JSON.stringify(queryTemplates[query2Template], null, 2)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="dual-query-actions">
+          {queryError && <div className="query-error">{queryError}</div>}
+          <button 
+            className="compare-profiles-btn"
+            onClick={executeAndCompareQueries}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Comparing...' : 'Compare Profile Output'}
+          </button>
+        </div>
+
+        {inlineComparisonResults && selectedProfile && profileToCompare && (
+          <div className="inline-comparison-results">
+            <ProfilerComparisonResults 
+              profiles={[selectedProfile, profileToCompare]} 
+              comparisonType={comparisonType}
+              onClose={closeInlineComparison} 
+              onExecuteTemplateQueries={handleExecuteTemplateQueries}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="profiler-dashboard">
       <header className="dashboard-header">
@@ -124,29 +467,35 @@ const ProfilerDashboard = ({ data, updateData }) => {
       />
 
       <div className="dashboard-actions">
-        <button 
-          className={`compare-btn ${compareMode ? 'active' : ''}`}
-          onClick={handleCompare}
-        >
-          COMPARE
-        </button>
-        
         <button
           className="new-query-btn"
           onClick={() => document.getElementById('query-input-trigger').click()}
         >
           NEW QUERY
         </button>
+
+        <button
+          className="dual-query-btn"
+          onClick={handleDualQueryComparison}
+        >
+          COMPARE TWO QUERIES
+        </button>
       </div>
 
       <ProfilerQueries 
         data={data} 
-        compareMode={compareMode}
         selectedProfile={selectedProfile}
         setSelectedProfile={setSelectedProfile}
-        profileToCompare={profileToCompare}
-        setProfileToCompare={setProfileToCompare}
       />
+
+      {showComparisonResults && selectedProfile && profileToCompare && (
+        <ProfilerComparisonResults 
+          profiles={[selectedProfile, profileToCompare]} 
+          comparisonType={comparisonType}
+          onClose={() => setShowComparisonResults(false)}
+          onExecuteTemplateQueries={handleExecuteTemplateQueries}
+        />
+      )}
     </div>
   );
 };

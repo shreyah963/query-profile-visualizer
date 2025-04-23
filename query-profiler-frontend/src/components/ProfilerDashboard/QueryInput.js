@@ -2,13 +2,24 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './QueryInput.css';
 
-const QueryInput = ({ onQueryExecuted }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const QueryInput = ({ 
+  onQueryExecuted, 
+  hideTemplate = false, 
+  label = "Query",
+  alwaysExpanded = false
+}) => {
+  const [isExpanded, setIsExpanded] = useState(alwaysExpanded);
   const [queryTemplate, setQueryTemplate] = useState('default');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [connectStatus, setConnectStatus] = useState(null);
   const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (alwaysExpanded) {
+      setIsExpanded(true);
+    }
+  }, [alwaysExpanded]);
 
   // Define query templates
   const queryTemplates = {
@@ -236,72 +247,69 @@ const QueryInput = ({ onQueryExecuted }) => {
         onClick={toggleExpand}
         id="query-input-trigger"
       >
-        <h3>Query Builder</h3>
+        <h3>{label}</h3>
         <span className="toggle-icon">{isExpanded ? '▼' : '▶'}</span>
       </div>
       
       {isExpanded && (
-        <div className="query-input-content">
-          <div className="template-selector">
-            <label>
-              Query Template:
-              <select value={queryTemplate} onChange={handleTemplateChange}>
-                <option value="default">Match All</option>
-                <option value="term_query">Term Query</option>
-                <option value="bool_query">Bool Query</option>
-                <option value="aggregation_query">Aggregation Query</option>
-                <option value="complex_query">Complex Query</option>
-              </select>
-            </label>
-            
-            <div className="template-actions">
+        <div className="query-input-expanded">
+          {!hideTemplate && (
+            <div className="template-selector">
+              <label>
+                Select a template:
+                <select value={queryTemplate} onChange={handleTemplateChange}>
+                  <option value="default">Default (match_all)</option>
+                  <option value="term_query">Term Query</option>
+                  <option value="bool_query">Boolean Query</option>
+                  <option value="aggregation_query">Aggregation Query</option>
+                  <option value="complex_query">Complex Query</option>
+                </select>
+              </label>
               <button 
-                className="reset-btn"
+                className="reset-template-btn" 
                 onClick={resetToTemplate}
                 title="Reset to selected template"
               >
-                Reset
-              </button>
-              
-              <button 
-                className={`connection-test-btn ${connectStatus ? connectStatus : ''}`}
-                onClick={testConnection}
-                disabled={isLoading || connectStatus === 'testing'}
-              >
-                {connectStatus === 'testing' ? 'Testing...' : 
-                 connectStatus === 'success' ? 'Connected!' : 
-                 connectStatus === 'failed' ? 'Failed!' : 
-                 'Test Connection'}
+                ↺
               </button>
             </div>
-          </div>
+          )}
           
-          <div className="query-editor-container">
+          <div className="query-textarea-container">
             <textarea
               ref={textareaRef}
-              className="query-editor"
               value={queryInput}
               onChange={handleQueryInputChange}
-              placeholder="Enter your query here..."
-              spellCheck="false"
+              placeholder="Enter your query in JSON format"
+              rows={10}
+              className="query-textarea"
             />
           </div>
           
-          <div className="query-controls">
+          <div className="query-input-actions">
+            <div className="connection-status">
+              {connectStatus === 'testing' && <span className="testing">Testing connection...</span>}
+              {connectStatus === 'success' && <span className="success">Connection successful!</span>}
+              {connectStatus === 'failed' && <span className="failed">Connection failed</span>}
+              <button 
+                className="test-connection-btn"
+                onClick={testConnection}
+                disabled={isLoading}
+              >
+                Test Connection
+              </button>
+            </div>
+            
             <button 
-              className="execute-btn"
+              className="execute-query-btn"
               onClick={handleExecuteQuery}
               disabled={isLoading}
             >
               {isLoading ? 'Executing...' : 'Execute Query'}
             </button>
-            
-            {error && (
-              <div className="query-error">
-                Error: {error}
-              </div>
-            )}
           </div>
+          
+          {error && <div className="error-message">{error}</div>}
         </div>
       )}
     </div>

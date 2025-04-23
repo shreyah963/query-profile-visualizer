@@ -7,7 +7,7 @@ import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 // Register the language
 SyntaxHighlighter.registerLanguage('json', json);
 
-const QueryDetail = ({ query, compareQuery, compareMode }) => {
+const QueryDetail = ({ query }) => {
   const [showRawBreakdown, setShowRawBreakdown] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     breakdown: true,   // Start with breakdown section expanded
@@ -26,6 +26,17 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
   const originalQueryData = query.originalQueryData || null;
 
   if (!query) return null;
+
+  // Log the query object for debugging
+  console.log('QueryDetail - received query object:', {
+    id: query.id,
+    queryName: query.queryName, 
+    type: query.type,
+    time_ms: query.time_ms,
+    totalDuration: query.totalDuration,
+    percentage: query.percentage,
+    breakdown: query.breakdown ? Object.keys(query.breakdown).length : 0
+  });
 
   // Helper function to format numbers with commas for thousands
   const formatNumber = (value) => {
@@ -84,6 +95,50 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
     }
   };
 
+  // Format breakdown key for better display
+  const formatBreakdownKey = (key) => {
+    // Replace underscores with spaces
+    let displayKey = key.replace(/_/g, ' ');
+    
+    // Handle compound query types (like "ConstantScoreQuery BooleanQuery 0 Build Scorer")
+    if (displayKey.includes('Query')) {
+      // Split by space to separate query types from operations
+      const parts = displayKey.split(' ');
+      
+      // Check if we have multiple parts that might contain query types
+      const queryTypes = [];
+      const operations = [];
+      
+      parts.forEach(part => {
+        if (part.includes('Query')) {
+          queryTypes.push(part);
+        } else if (!isNaN(parseInt(part))) {
+          // Skip numeric indices
+        } else {
+          operations.push(part);
+        }
+      });
+      
+      // Return as separate parts for rendering
+      if (queryTypes.length > 0 && operations.length > 0) {
+        return {
+          operation: operations.join(' ').replace(/\b\w/g, c => c.toUpperCase()),
+          queryTypes: queryTypes.join(' → ')
+        };
+      }
+    }
+    
+    // Clean up common prefixes for easier reading
+    displayKey = displayKey
+      .replace(/^agg /i, 'Aggregation: ')
+      .replace(/^collector /i, 'Collector: ');
+    
+    // Make first letter of each word uppercase
+    displayKey = displayKey.replace(/\b\w/g, c => c.toUpperCase());
+    
+    return { operation: displayKey };
+  };
+
   // Function to render breakdown data (visual style)
   const renderBreakdownItems = (breakdown) => {
     if (!breakdown || Object.keys(breakdown).length === 0) {
@@ -135,12 +190,17 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
           {breakdownItems.map(([key, value]) => {
             const color = getPerformanceColor(value);
             const percent = (value / total) * 100;
-            const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const formattedKey = formatBreakdownKey(key);
             
             return (
               <div key={key} className="breakdown-item">
                 <div className="breakdown-label">
-                  <span>{displayKey}</span>
+                  <span>
+                    {formattedKey.operation}
+                    {formattedKey.queryTypes && (
+                      <span className="query-type"> ({formattedKey.queryTypes})</span>
+                    )}
+                  </span>
                   <span className="breakdown-time" style={{ color }}>
                     {formatNumber(value)} ns
                   </span>
@@ -183,12 +243,17 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
           {items.map(([key, value]) => {
             const color = getPerformanceColor(value);
             const percent = (value / total) * 100;
-            const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const formattedKey = formatBreakdownKey(key);
             
             return (
               <div key={key} className="breakdown-item">
                 <div className="breakdown-label">
-                  <span>{displayKey}</span>
+                  <span>
+                    {formattedKey.operation}
+                    {formattedKey.queryTypes && (
+                      <span className="query-type"> ({formattedKey.queryTypes})</span>
+                    )}
+                  </span>
                   <span className="breakdown-time" style={{ color }}>
                     {formatNumber(value)} ns
                   </span>
@@ -273,7 +338,7 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
             </thead>
             <tbody>
               {timeOperations.map(([key, value]) => {
-                const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const formattedKey = formatBreakdownKey(key);
                 const color = getPerformanceColor(value);
                 
                 // Find matching count operation
@@ -283,7 +348,12 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
                 
                 return (
                   <tr key={key}>
-                    <td style={operationCellStyle}>{displayKey}</td>
+                    <td style={operationCellStyle}>
+                      {formattedKey.operation}
+                      {formattedKey.queryTypes && (
+                        <span className="query-type"> ({formattedKey.queryTypes})</span>
+                      )}
+                    </td>
                     <td style={{ ...numericCellStyle, color }}>
                       {value.toLocaleString()}
                     </td>
@@ -308,6 +378,15 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
   const children = query.children || [];
   const breakdown = query.breakdown || {};
   const rawBreakdown = query.rawBreakdown || query.breakdown || {};
+  
+  // Log extracted timing information for debugging
+  console.log('QueryDetail - extracted timing info:', {
+    queryType,
+    timeMs,
+    percentage,
+    time_ms: query.time_ms,
+    totalDuration: query.totalDuration
+  });
   
   // Extract aggregation data if available
   const aggregations = query.aggregations || [];
@@ -384,11 +463,19 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
   // Check if there are aggregations available
   const hasAggregations = aggregations && aggregations.length > 0;
   
-  // Define query type flags
-  const isConstantScore = queryType === 'ConstantScoreQuery' || query.queryName === 'ConstantScoreQuery';
-  const isQueryRewrite = (queryType === 'QueryRewrite' || queryIntentLabel === 'Query Rewrite') && 
-                         !isConstantScore; // Ensure ConstantScoreQuery isn't treated as a QueryRewrite
-  const isCollector = queryType === 'Collectors' || queryIntentLabel === 'Query Collectors';
+  // First define isConstantScore to check for constant score queries
+  const isConstantScore = queryType === 'ConstantScoreQuery' || (query && query.queryName === 'ConstantScoreQuery');
+  
+  // Then define isQueryRewrite to explicitly exclude constant score queries
+  const isQueryRewrite = !isConstantScore && (
+    queryType === 'QueryRewrite' || 
+    queryType === 'Query Rewrite' || 
+    (query && (query.queryName === 'QueryRewrite' || query.queryName === 'Query Rewrite'))
+  );
+  
+  const isCollector = queryType === 'Collector' || (query && query.queryName === 'Collector');
+  
+  // Add more type checks as needed
   const isAggregationType = query.type === 'AggregationType' || 
                            query.queryName?.includes('Aggregator') ||
                            (query.queryName && query.queryName !== 'Aggregations' && query.type !== 'Aggregations' && 
@@ -414,12 +501,12 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
   // Get collector data if this is the Query Collectors section
   const hasCollectorData = isCollector && query.collectorData && query.collectorData.length > 0;
 
-  // Function to determine if the current query matches a specific type
-  const isCurrentQueryType = (type) => {
-    if (type === 'ConstantScoreQuery') return isConstantScore;
-    if (type === 'QueryRewrite') return isQueryRewrite;
-    if (type === 'Collectors') return isCollector;
-    if (type === 'Aggregations') return isAggregationType;
+  // Helper function to check current query type against a list of possible types
+  const isCurrentQueryType = (types) => {
+    if (types === 'ConstantScoreQuery') return isConstantScore;
+    if (types === 'QueryRewrite') return isQueryRewrite;
+    if (types === 'Collectors') return isCollector;
+    if (types === 'Aggregations') return isAggregationType;
     // Add more type checks as needed
     return false;
   };
@@ -543,6 +630,19 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
           const isExpanded = expandedQueryNodes[queryId] !== false; // Default to expanded
           const hasChildren = child.children && child.children.length > 0;
           const queryType = child.type || child.queryName || 'Unknown';
+          const childTimeMs = child.time_ms || child.totalDuration || 0;
+          
+          // Log child query timing for debugging
+          if (level === 0) {
+            console.log('Child query timing:', {
+              queryId,
+              queryType,
+              time_ms: child.time_ms,
+              totalDuration: child.totalDuration,
+              childTimeMs,
+              percentage: child.percentage
+            });
+          }
           
           return (
             <div key={queryId} className="query-hierarchy-item">
@@ -562,7 +662,7 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
                   )}
                   <h5>{queryType}</h5>
                   <div className="query-node-metrics">
-                    <span className="query-node-time">{formatDuration(child.time_ms || child.totalDuration || 0)}</span>
+                    <span className="query-node-time">{formatDuration(childTimeMs)}</span>
                     <span className="query-node-percentage">({safeToFixed(child.percentage || 0, 1)}%)</span>
                   </div>
                 </div>
@@ -631,20 +731,6 @@ const QueryDetail = ({ query, compareQuery, compareMode }) => {
           <span className="metric-value">{safeToFixed(percentage, 1)}%</span>
         </div>
       </div>
-
-      {compareMode && compareQuery && (
-        <div className="comparison-header">
-          <h4>Comparing with: {compareQuery.type || compareQuery.queryName || 'Unknown query'}</h4>
-          <div className="comparison-metrics">
-            <div className="comparison-metric">
-              <span className="metric-label">Time difference:</span>
-              <span className={`metric-value ${(compareQuery.time_ms || compareQuery.totalDuration || 0) > timeMs ? 'better' : 'worse'}`}>
-                {safeToFixed((compareQuery.time_ms || compareQuery.totalDuration || 0) - timeMs, 3)} ms
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Collapsible sections */}
       <div className="detail-sections">

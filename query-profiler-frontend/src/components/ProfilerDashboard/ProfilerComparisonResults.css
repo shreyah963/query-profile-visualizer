@@ -1,0 +1,783 @@
+.comparison-results-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.comparison-results-modal {
+  background-color: #fff;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  width: 80%;
+  max-width: 1000px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.comparison-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eaeaea;
+  background-color: #f7f9fc;
+}
+
+.comparison-results-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.view-toggles {
+  display: flex;
+  margin-left: auto;
+  margin-right: 20px;
+}
+
+.view-toggle {
+  background-color: transparent;
+  border: 1px solid #ddd;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.view-toggle:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.view-toggle:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.view-toggle.active {
+  background-color: #2196f3;
+  color: white;
+  border-color: #2196f3;
+}
+
+.close-button {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+}
+
+.close-button:hover {
+  color: #333;
+}
+
+.comparison-results-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex-grow: 1;
+  max-height: calc(90vh - 130px); /* Account for header and footer */
+}
+
+.comparison-results-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 15px 20px;
+  border-top: 1px solid #eaeaea;
+  background-color: #f7f9fc;
+}
+
+.action-button {
+  padding: 8px 16px;
+  margin-left: 10px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background-color: #f5f5f5;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.action-button:hover {
+  background-color: #e9e9e9;
+}
+
+.action-button:last-child {
+  background-color: #2196f3;
+  color: white;
+  border-color: #2196f3;
+}
+
+.action-button:last-child:hover {
+  background-color: #1976d2;
+}
+
+/* Summary View Styles */
+.comparison-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.comparison-overview {
+  background-color: #f5f7fa;
+  border-radius: 6px;
+  padding: 20px;
+  text-align: center;
+}
+
+.comparison-overview h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #555;
+}
+
+.performance-better {
+  color: #4caf50;
+}
+
+.performance-worse {
+  color: #f44336;
+}
+
+.performance-similar {
+  color: #ff9800;
+}
+
+.metric-large {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.metric-percentage {
+  font-size: 1.5rem;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.comparison-details {
+  display: flex;
+  gap: 20px;
+}
+
+.comparison-item {
+  flex: 1;
+  background-color: #ffffff;
+  border: 1px solid #eaeaea;
+  border-radius: 6px;
+  padding: 15px;
+}
+
+.comparison-item h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #555;
+}
+
+.highlight-diff {
+  padding: 6px 10px;
+  background-color: #fff8e1;
+  border-radius: 4px;
+  border-left: 3px solid #ffc107;
+}
+
+.diff-note {
+  font-size: 0.85rem;
+  margin-top: 5px;
+  color: #7e57c2;
+}
+
+.factors-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.factors-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s ease;
+}
+
+.factors-list li:hover {
+  background-color: #f9f9f9;
+}
+
+.factors-list li:last-child {
+  border-bottom: none;
+}
+
+.performance-better {
+  color: #4caf50;
+  border-left: 3px solid #4caf50;
+  padding-left: 12px !important;
+}
+
+.performance-worse {
+  color: #f44336;
+  border-left: 3px solid #f44336;
+  padding-left: 12px !important;
+}
+
+.factor-name {
+  font-weight: 500;
+  flex: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 10px;
+  color: #333;
+}
+
+.factor-change {
+  text-align: right;
+  flex: 1;
+  white-space: nowrap;
+  font-family: monospace;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.no-factors {
+  color: #6b7280;
+  font-style: italic;
+  padding: 10px 0;
+  text-align: center;
+}
+
+/* Detailed View Styles */
+.comparison-detailed {
+  margin-bottom: 20px;
+}
+
+.comparison-grid-container {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  background-color: #f5f5f5;
+  min-width: 800px;
+  width: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.comparison-grid > div {
+  background-color: #ffffff;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.comparison-header {
+  font-weight: 600;
+  background-color: #f1f5f9 !important;
+  color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.metric-section-header {
+  font-weight: 600;
+  background-color: #e8f4fd !important;
+  color: #0d47a1;
+  padding: 12px 16px;
+  grid-column: 1 / -1;
+  border-top: 1px solid #d1e3f6;
+  border-bottom: 1px solid #d1e3f6;
+  font-size: 1em;
+  letter-spacing: 0.02em;
+}
+
+.metric-section-header:not(:first-of-type) {
+  margin-top: 8px;
+}
+
+.metric-name {
+  font-weight: 500;
+  word-break: break-word;
+  padding-right: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.metric-value {
+  text-align: center;
+  font-family: monospace;
+  word-break: break-word;
+  font-size: 1.1em;
+}
+
+.metric-diff {
+  text-align: right;
+  font-weight: 600;
+  word-break: break-word;
+  font-family: monospace;
+  font-size: 1.15em;
+}
+
+/* Ensure the query type span works well in detailed view */
+.comparison-grid .query-type {
+  display: inline-block;
+  color: #777;
+  font-size: 0.9em;
+  font-style: italic;
+  font-weight: normal;
+  margin-left: 4px;
+}
+
+/* Updated alternating row colors within each section */
+.comparison-grid > div:nth-child(8n+5):not(.metric-section-header),
+.comparison-grid > div:nth-child(8n+6):not(.metric-section-header),
+.comparison-grid > div:nth-child(8n+7):not(.metric-section-header),
+.comparison-grid > div:nth-child(8n+8):not(.metric-section-header) {
+  background-color: #fcfcfc;
+}
+
+/* Enhanced styling for performance indicators */
+.metric-diff.performance-better {
+  color: #2e7d32;
+  background-color: rgba(76, 175, 80, 0.1);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.metric-diff.performance-worse {
+  color: #c62828;
+  background-color: rgba(244, 67, 54, 0.1);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.metric-diff.performance-similar {
+  color: #ef6c00;
+  background-color: rgba(255, 152, 0, 0.1);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+/* Section Toggle */
+.section-header {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  margin-left: 10px;
+}
+
+.section-content {
+  padding: 15px;
+  background-color: #ffffff;
+  border: 1px solid #eaeaea;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  max-height: 500px;
+  overflow: auto; /* Changed from overflow-y to overflow */
+}
+
+.toggle-icon {
+  font-size: 1.2rem;
+  transition: transform 0.2s;
+}
+
+.toggle-icon.expanded {
+  transform: rotate(180deg);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .comparison-grid {
+    grid-template-columns: 1fr;
+    min-width: unset; /* Remove minimum width on mobile */
+  }
+  
+  .comparison-results-content {
+    padding: 10px; /* Reduce padding on mobile */
+  }
+  
+  .query-comparison-container {
+    flex-direction: column;
+  }
+  
+  .profile-label, .diff-label {
+    text-align: left;
+  }
+  
+  .metric-value, .metric-diff {
+    text-align: left;
+  }
+}
+
+/* Query Structure Comparison Styles */
+.query-comparison-container {
+  display: flex;
+  gap: 20px;
+}
+
+.query-column {
+  flex: 1;
+  overflow: hidden;
+}
+
+.query-column h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #555;
+}
+
+.query-code {
+  border: 1px solid #eaeaea;
+  border-radius: 4px;
+  overflow: auto;
+  max-height: 300px;
+}
+
+.query-code pre {
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* Results Comparison Styles */
+.results-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.results-stats p {
+  margin: 0;
+  font-weight: 500;
+}
+
+.results-table-container {
+  overflow-x: auto;
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.results-table th,
+.results-table td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.results-table th {
+  background-color: #f5f7fa;
+  font-weight: 500;
+}
+
+.results-table tr:hover {
+  background-color: #f9f9f9;
+}
+
+.results-note {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #888;
+  margin-top: 10px;
+}
+
+.no-results {
+  text-align: center;
+  padding: 20px;
+  color: #888;
+  font-style: italic;
+}
+
+.improvement {
+  color: #4caf50;
+}
+
+.regression {
+  color: #f44336;
+}
+
+.close-button-large {
+  padding: 8px 16px;
+  border-radius: 4px;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.close-button-large:hover {
+  background-color: #1976d2;
+}
+
+/* Comparison Section Styles */
+.comparison-section {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.comparison-section:first-child {
+  margin-top: 0;
+}
+
+.comparison-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Loading and Error States */
+.loading-indicator {
+  padding: 20px;
+  text-align: center;
+  color: #555;
+  font-style: italic;
+}
+
+.comparison-error {
+  padding: 20px;
+  text-align: center;
+  color: #f44336;
+  font-weight: 500;
+  background-color: #ffebee;
+  border-radius: 4px;
+  margin: 20px 0;
+}
+
+/* Add styles for query hierarchy comparison */
+.query-hierarchy-container {
+  display: flex;
+  gap: 20px;
+  margin-top: 15px;
+}
+
+.query-hierarchy {
+  background: #f5f7fa;
+  border-radius: 6px;
+  padding: 15px;
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid #e1e5eb;
+}
+
+.query-root-node {
+  margin-bottom: 15px;
+  border-bottom: 1px solid #e1e5eb;
+  padding-bottom: 15px;
+}
+
+.query-root-node:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.query-hierarchy-node {
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.query-node-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+
+.query-node-type {
+  color: #2563eb;
+  font-family: monospace;
+}
+
+.query-node-time {
+  color: #2d3748;
+  font-size: 0.9em;
+}
+
+.query-node-description {
+  font-size: 0.85em;
+  color: #4b5563;
+  margin-bottom: 5px;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+.query-node-children {
+  margin-top: 5px;
+  padding-left: 5px;
+  border-left: 2px solid #e5e7eb;
+}
+
+.query-child-connector {
+  position: relative;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.query-child-connector:before {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 2px;
+  background: #e5e7eb;
+  left: -5px;
+  top: 15px;
+}
+
+.no-hierarchy-data {
+  color: #6b7280;
+  font-style: italic;
+  padding: 15px;
+  text-align: center;
+}
+
+/* Template Selection Section */
+.template-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  margin-top: 12px;
+}
+
+.template-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.template-dropdown {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.execute-template-btn {
+  padding: 8px 16px;
+  background-color: #4a6ee0;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.execute-template-btn:hover {
+  background-color: #3c5bb9;
+}
+
+.template-preview {
+  background-color: #212529;
+  border-radius: 4px;
+  padding: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.template-preview h4 {
+  color: #ced4da;
+  margin: 0 0 8px 0;
+  font-size: 14px;
+}
+
+.template-preview pre {
+  margin: 0;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .template-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .execute-template-btn {
+    margin-top: 8px;
+  }
+}
+
+/* Style for query types in breakdown displays */
+.query-type {
+  color: #666;
+  font-size: 0.9em;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.factors-list .query-type {
+  color: #777;
+  font-size: 0.85em;
+}
+
+.comparison-grid .metric-name .query-type {
+  display: inline-block;
+  color: #777;
+  font-size: 0.9em;
+}
+
+/* Add specific styles for time differences across all views */
+.time-diff {
+  font-weight: 700;
+  font-size: 1.2em;
+}
+
+.percentage-diff {
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+/* Style for better visibility of query execution time differences */
+.metric-diff.improvement,
+.metric-diff.regression,
+.metric-diff.similar {
+  font-size: 1.2em;
+  font-weight: 700;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.metric-diff.improvement {
+  background-color: rgba(76, 175, 80, 0.1);
+}
+
+.metric-diff.regression {
+  background-color: rgba(244, 67, 54, 0.1);
+}
+
+.metric-diff.similar {
+  background-color: rgba(255, 152, 0, 0.1);
+} 
