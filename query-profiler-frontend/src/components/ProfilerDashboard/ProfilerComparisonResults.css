@@ -306,6 +306,16 @@
   letter-spacing: 0.02em;
 }
 
+.metric-section-header.level-2 {
+  background-color: #f1faff !important;
+  color: #1976d2;
+  padding-left: 24px;
+  font-weight: 500;
+  font-size: 0.95em;
+  border-top: none;
+  border-bottom: 1px solid #e4f0fc;
+}
+
 .metric-section-header:not(:first-of-type) {
   margin-top: 8px;
 }
@@ -316,6 +326,8 @@
   padding-right: 10px;
   display: flex;
   align-items: center;
+  font-size: 0.95em;
+  color: #333;
 }
 
 .metric-value {
@@ -323,6 +335,7 @@
   font-family: monospace;
   word-break: break-word;
   font-size: 1.1em;
+  color: #555;
 }
 
 .metric-diff {
@@ -331,6 +344,15 @@
   word-break: break-word;
   font-family: monospace;
   font-size: 1.15em;
+}
+
+/* Ensure the count data is styled correctly */
+.metric-count-label {
+  color: #777;
+  font-size: 0.85em;
+  margin-left: 6px;
+  font-weight: normal;
+  font-style: italic;
 }
 
 /* Ensure the query type span works well in detailed view */

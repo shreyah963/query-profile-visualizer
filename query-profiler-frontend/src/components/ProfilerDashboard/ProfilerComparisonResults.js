@@ -118,60 +118,32 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     // Skip metrics that end with _count
     if (key.endsWith('_count')) return { operation: key };
     
+    // Extract the base operation name without query types for simplified view
+    
     // Replace underscores with spaces
     let displayKey = key.replace(/_/g, ' ');
+    
+    // If we're keeping it simple, just extract the last part after the last underscore
+    // This will typically be the operation name like 'build_scorer' -> 'scorer'
+    if (key.includes('_')) {
+      const parts = key.split('_');
+      // Get the last meaningful operation part
+      displayKey = parts[parts.length - 1];
+    }
     
     // Handle compound query types (like "ConstantScoreQuery BooleanQuery 0 Build Scorer")
     if (displayKey.includes('Query')) {
       // Split by space to separate query types from operations
       const parts = displayKey.split(' ');
       
-      // Check if we have multiple parts that might contain query types
-      const queryTypes = [];
-      const operations = [];
+      // Extract only the operation parts, filtering out query types and numeric indices
+      const operations = parts.filter(part => 
+        !part.includes('Query') && isNaN(parseInt(part))
+      );
       
-      parts.forEach(part => {
-        if (part.includes('Query')) {
-          queryTypes.push(part);
-        } else if (!isNaN(parseInt(part))) {
-          // Skip numeric indices
-        } else {
-          operations.push(part);
-        }
-      });
-      
-      // Return a simplified operation name without query types
+      // If we have operations, use them; otherwise, keep the original
       if (operations.length > 0) {
-        const operation = operations.join(' ').replace(/\b\w/g, c => c.toUpperCase());
-        return {
-          operation: operation.length > 25 ? operation.substring(0, 22) + '...' : operation,
-          // Store the queryTypes but don't display them (they'll be visible in tooltips)
-          queryTypes: queryTypes.join(' → ')
-        };
-      }
-    }
-    
-    // For collector operations, simplify to just the operation name
-    if (displayKey.startsWith('collector ')) {
-      const parts = displayKey.split(' ');
-      if (parts.length > 2) {
-        // Just return the operation part without the collector name
-        return { 
-          operation: parts.slice(2).join(' ').replace(/\b\w/g, c => c.toUpperCase()),
-          collectorType: parts[1]
-        };
-      }
-    }
-    
-    // For aggregation operations, simplify to just the operation name
-    if (displayKey.startsWith('agg ')) {
-      const parts = displayKey.split(' ');
-      if (parts.length > 2) {
-        // Just return the operation part without the aggregation type
-        return { 
-          operation: parts.slice(2).join(' ').replace(/\b\w/g, c => c.toUpperCase()),
-          aggType: parts[1]
-        };
+        displayKey = operations.join(' ');
       }
     }
     
@@ -182,11 +154,6 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     
     // Make first letter of each word uppercase
     displayKey = displayKey.replace(/\b\w/g, c => c.toUpperCase());
-    
-    // Shorten long keys
-    if (displayKey.length > 25) {
-      displayKey = displayKey.substring(0, 22) + '...';
-    }
     
     return { operation: displayKey };
   };
@@ -574,7 +541,7 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
                   const formattedKey = formatBreakdownKey(key);
                   return (
                     <li key={key} className={`performance-${data.diff < 0 ? 'better' : 'worse'}`}>
-                      <span className="factor-name" title={key}>
+                      <span className="factor-name">
                         {formattedKey.operation}
                       </span>
                       <span className="factor-change">
@@ -632,7 +599,7 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
         }
       });
 
-      // Helper to extract query type from key
+      // Helper to extract query type from key - used for hierarchical organization, not display
       const extractQueryInfo = (key) => {
         const parts = key.split('_');
         let queryType = '';
@@ -650,8 +617,8 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
           isNested = true;
         }
         
-        // Extract operation name
-        operation = parts[parts.length - 1];
+        // Extract operation name - just the last part
+        operation = parts.length > 0 ? parts[parts.length - 1] : key;
         
         return { queryType, operation, isNested };
       };
@@ -775,7 +742,7 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
           </React.Fragment>
         );
       } else {
-        // Handle regular metrics - simplify to just show the operation name
+        // Handle regular metrics - simplified without query types
         return (
           <React.Fragment key={item.key}>
             <div className="metric-name" title={item.key}>
