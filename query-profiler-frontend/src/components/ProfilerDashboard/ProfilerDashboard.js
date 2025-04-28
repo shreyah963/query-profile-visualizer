@@ -644,11 +644,13 @@ const ProfilerDashboard = ({ data, updateData }) => {
         </button>
       </div>
 
-      <ProfilerQueries 
-        data={data} 
-        selectedProfile={selectedProfile}
-        setSelectedProfile={setSelectedProfile}
-      />
+      {data && data.profileData && (
+        <ProfilerQueries 
+          data={data} 
+          selectedProfile={selectedProfile}
+          setSelectedProfile={setSelectedProfile}
+        />
+      )}
 
       <ProfilerSummary 
         executionTime={executionTime} 
