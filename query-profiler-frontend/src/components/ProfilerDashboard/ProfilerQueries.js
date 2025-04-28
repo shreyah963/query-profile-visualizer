@@ -401,7 +401,7 @@ const ProfilerQueries = ({
             className={`query-tab${showHierarchy === 'query' ? ' active' : ''}`}
             onClick={() => setShowHierarchy('query')}
           >
-            Query
+            Searches
           </button>
           <button
             className={`query-tab${showHierarchy === 'agg' ? ' active' : ''}`}
