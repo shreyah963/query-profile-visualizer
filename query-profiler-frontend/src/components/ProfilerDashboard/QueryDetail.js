@@ -18,14 +18,13 @@ const QueryDetail = ({ query }) => {
     aggregations: true,  // Start with aggregations section expanded
     aggTypeBreakdown: true  // Auto-expand aggregation breakdown for aggregation types
   });
-
   // Add state to track expanded query nodes in the hierarchy view
   const [expandedQueryNodes, setExpandedQueryNodes] = useState({});
 
+  if (!query) return null;
+
   // Get the original query from the query object
   const originalQueryData = query.originalQueryData || null;
-
-  if (!query) return null;
 
   // Log the query object for debugging
   console.log('QueryDetail - received query object:', {
@@ -373,7 +372,7 @@ const QueryDetail = ({ query }) => {
   // Extract properties with default values to avoid undefined errors
   const timeMs = query.time_ms || query.totalDuration || 0;
   const percentage = query.percentage || 0;
-  const queryType = query.type || query.queryName || 'Unknown query';
+  const queryType = typeof query.type === 'string' ? query.type : (typeof query.queryName === 'string' ? query.queryName : '');
   const queryDescription = query.description || '';
   const children = query.children || [];
   const breakdown = query.breakdown || {};
@@ -458,7 +457,7 @@ const QueryDetail = ({ query }) => {
   }
 
   // Get the query intent label
-  const queryIntentLabel = getQueryIntentLabel();
+  const queryIntentLabel = getQueryIntentLabel() || '';
   
   // Check if there are aggregations available
   const hasAggregations = aggregations && aggregations.length > 0;
@@ -707,15 +706,35 @@ const QueryDetail = ({ query }) => {
     );
   };
 
+  // Utility to safely lowercase a string
+  const safeLowerCase = (val) => (typeof val === 'string' ? val.toLowerCase() : '');
+
+  // --- Add after extracting queryType, queryIntentLabel, etc. ---
+  const isRewrite = query.type === 'Rewrite' || query.queryName === 'Rewrite';
+  const collectorChildren = query.children || [];
+
   return (
     <div className="query-detail">
       <div className="detail-header">
-        <h3 className={`query-type-${queryType.toLowerCase().replace(/\s+/g, '-')}`}>
-          <span className="query-label">{queryIntentLabel}</span>
-          {queryIntentLabel !== queryType && (
+        {/* Header for Rewrite and Collector types */}
+        {isRewrite ? (
+          <h3 className="query-type-rewrite">
+            <span className="query-label">Query Rewrite</span>
+            <span className="technical-type">(Rewrite)</span>
+          </h3>
+        ) : isCollector ? (
+          <h3 className="query-type-collector">
+            <span className="query-label">Collector</span>
             <span className="technical-type">({queryType})</span>
-          )}
-        </h3>
+          </h3>
+        ) : (
+          <h3 className={`query-type-${safeLowerCase(queryType).replace(/\s+/g, '-')}`}>
+            <span className="query-label">{queryIntentLabel}</span>
+            {queryIntentLabel !== queryType && (
+              <span className="technical-type">({queryType})</span>
+            )}
+          </h3>
+        )}
         {queryDescription && (
           <p className="query-description">{queryDescription}</p>
         )}
@@ -732,301 +751,375 @@ const QueryDetail = ({ query }) => {
         </div>
       </div>
 
-      {/* Collapsible sections */}
-      <div className="detail-sections">
-        {/* Breakdown section - only show for non-collector queries and non-aggregation types */}
-        {hasBreakdownData && !isAggregationType && (
-          <div className="detail-section">
-            <div 
-              className={`section-header ${expandedSections.breakdown ? 'expanded' : ''}`} 
-              onClick={() => toggleSection('breakdown')}
-            >
-              <h4>Operation Breakdown</h4>
-              <span className="toggle-icon">{expandedSections.breakdown ? '▼' : '▶'}</span>
+      {/* Special handling for Rewrite node */}
+      {isRewrite && (
+        <div className="detail-section">
+          <div className="section-header expanded">
+            <h4>Rewrite Phase</h4>
+          </div>
+          <div className="section-content">
+            <div className="rewrite-explanation">
+              <p>This node represents the time spent rewriting the query before execution. This phase includes optimizations and transformations performed by the search engine.</p>
             </div>
-            
-            {expandedSections.breakdown && (
-              <div className="section-content">
-                <div className="breakdown-controls">
-                  <button 
-                    className={`breakdown-toggle ${!showRawBreakdown ? 'active' : ''}`}
-                    onClick={() => setShowRawBreakdown(false)}
-                  >
-                    Visual Breakdown
-                  </button>
-                  <button 
-                    className={`breakdown-toggle ${showRawBreakdown ? 'active' : ''}`}
-                    onClick={() => setShowRawBreakdown(true)}
-                  >
-                    Raw Data
-                  </button>
+          </div>
+        </div>
+      )}
+
+      {/* Special handling for Collector node */}
+      {isCollector && (
+        <div className="detail-section collector-details-section">
+          <div className="section-header expanded">
+            <h4>Collector Tree</h4>
+          </div>
+          <div className="section-content">
+            <div className="section-intro">
+              This section shows the collector hierarchy and timing for each collector and its children.
+            </div>
+            <div className="collectors-list">
+              {collectorChildren.length > 0 ? (
+                collectorChildren.map((collector, idx) => (
+                  <CollectorTree key={collector.name + '-' + idx} collector={collector} level={0} />
+                ))
+              ) : (
+                <div>No collector children found.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Render the rest of the sections as before, but skip for Rewrite/Collector */}
+      {!isRewrite && !isCollector && (
+        <>{/* --- existing detail-sections block here --- */}
+          {/* Collapsible sections */}
+          <div className="detail-sections">
+            {/* Breakdown section - only show for non-collector queries and non-aggregation types */}
+            {hasBreakdownData && !isAggregationType && (
+              <div className="detail-section">
+                <div 
+                  className={`section-header ${expandedSections.breakdown ? 'expanded' : ''}`} 
+                  onClick={() => toggleSection('breakdown')}
+                >
+                  <h4>Operation Breakdown</h4>
+                  <span className="toggle-icon">{expandedSections.breakdown ? '▼' : '▶'}</span>
                 </div>
                 
-                <div className="breakdown-list">
-                  {!showRawBreakdown ? 
-                    renderBreakdownItems(combinedBreakdown) :
-                    renderRawBreakdown(combinedRawBreakdown)
-                  }
-                </div>
+                {expandedSections.breakdown && (
+                  <div className="section-content">
+                    <div className="breakdown-controls">
+                      <button 
+                        className={`breakdown-toggle ${!showRawBreakdown ? 'active' : ''}`}
+                        onClick={() => setShowRawBreakdown(false)}
+                      >
+                        Visual Breakdown
+                      </button>
+                      <button 
+                        className={`breakdown-toggle ${showRawBreakdown ? 'active' : ''}`}
+                        onClick={() => setShowRawBreakdown(true)}
+                      >
+                        Raw Data
+                      </button>
+                    </div>
+                    
+                    <div className="breakdown-list">
+                      {!showRawBreakdown ? 
+                        renderBreakdownItems(combinedBreakdown) :
+                        renderRawBreakdown(combinedRawBreakdown)
+                      }
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
-        
-        {/* Query Structure section - REMOVED */}
-        
-        {/* Children/Subqueries section with hierarchical visualization */}
-        {children.length > 0 && (
-          <div className="detail-section">
-            <div 
-              className={`section-header ${expandedSections.children ? 'expanded' : ''}`}
-              onClick={() => toggleSection('children')}
-            >
-              <h4>Query Hierarchy</h4>
-              <span className="toggle-icon">{expandedSections.children ? '▼' : '▶'}</span>
-            </div>
             
-            {expandedSections.children && (
-              <div className="section-content">
-                <div className="section-intro">
-                  This visualization shows the hierarchical structure of the query and its subqueries.
+            {/* Query Structure section - REMOVED */}
+            
+            {/* Children/Subqueries section with hierarchical visualization */}
+            {children.length > 0 && (
+              <div className="detail-section">
+                <div 
+                  className={`section-header ${expandedSections.children ? 'expanded' : ''}`}
+                  onClick={() => toggleSection('children')}
+                >
+                  <h4>Query Hierarchy</h4>
+                  <span className="toggle-icon">{expandedSections.children ? '▼' : '▶'}</span>
                 </div>
                 
-                <div className="query-hierarchy">
-                  {/* Root query node */}
-                  <div className="query-hierarchy-root">
-                    <div className="query-node query-node-root" data-type={queryType}>
-                      <div className="query-node-header">
-                        <h5>{queryType}</h5>
-                        <div className="query-node-metrics">
-                          <span className="query-node-time">{formatDuration(timeMs)}</span>
-                          <span className="query-node-percentage">({safeToFixed(percentage, 1)}%)</span>
+                {expandedSections.children && (
+                  <div className="section-content">
+                    <div className="section-intro">
+                      This visualization shows the hierarchical structure of the query and its subqueries.
+                    </div>
+                    
+                    <div className="query-hierarchy">
+                      {/* Root query node */}
+                      <div className="query-hierarchy-root">
+                        <div className="query-node query-node-root" data-type={queryType}>
+                          <div className="query-node-header">
+                            <h5>{queryType}</h5>
+                            <div className="query-node-metrics">
+                              <span className="query-node-time">{formatDuration(timeMs)}</span>
+                              <span className="query-node-percentage">({safeToFixed(percentage, 1)}%)</span>
+                            </div>
+                          </div>
+                          <p className="query-node-description">{queryDescription}</p>
+                          {/* Render children with connecting lines */}
+                          <div className="query-node-children">
+                            {renderQueryHierarchy(children, 0)}
+                          </div>
                         </div>
-                      </div>
-                      <p className="query-node-description">{queryDescription}</p>
-                      {/* Render children with connecting lines */}
-                      <div className="query-node-children">
-                        {renderQueryHierarchy(children, 0)}
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {/* Query Explanation section */}
-        <div className="detail-section">
-          <div 
-            className={`section-header ${expandedSections.explanation ? 'expanded' : ''}`}
-            onClick={() => toggleSection('explanation')}
-          >
-            <h4>Query Explanation</h4>
-            <span className="toggle-icon">{expandedSections.explanation ? '▼' : '▶'}</span>
-          </div>
-          
-          {expandedSections.explanation && (
-            <div className="section-content">
-              <div className="query-explanation">
-                {renderExplanationContent()}
-                <div className="explanation-note">
-                  <p>
-                    <strong>Query type:</strong> {queryType}
-                  </p>
-                  <p>
-                    This is a {queryIntentLabel.toLowerCase()} that took {formatDuration(timeMs)} 
-                    ({safeToFixed(percentage, 1)}% of the total execution time).
-                  </p>
-                </div>
+            {/* Query Explanation section */}
+            <div className="detail-section">
+              <div 
+                className={`section-header ${expandedSections.explanation ? 'expanded' : ''}`}
+                onClick={() => toggleSection('explanation')}
+              >
+                <h4>Query Explanation</h4>
+                <span className="toggle-icon">{expandedSections.explanation ? '▼' : '▶'}</span>
               </div>
+              
+              {expandedSections.explanation && (
+                <div className="section-content">
+                  <div className="query-explanation">
+                    {renderExplanationContent()}
+                    <div className="explanation-note">
+                      <p>
+                        <strong>Query type:</strong> {queryType}
+                      </p>
+                      <p>
+                        This is a {safeLowerCase(queryIntentLabel)} that took {formatDuration(timeMs)} 
+                        ({safeToFixed(percentage, 1)}% of the total execution time).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Collector Details section - only show for collector queries */}
-        {isCollector && hasCollectorData && (
-          <div className="detail-section collector-details-section">
-            <div 
-              className={`section-header ${expandedSections.collectors ? 'expanded' : ''}`}
-              onClick={() => toggleSection('collectors')}
-            >
-              <h4>Collector Details</h4>
-              <span className="toggle-icon">{expandedSections.collectors ? '▼' : '▶'}</span>
-            </div>
-            
-            {expandedSections.collectors && (
-              <div className="section-content">
-                <div className="section-intro">
-                  These collectors handle the gathering and processing of matching documents.
-                </div>
-                <div className="collectors-list">
-                  {query.collectorData.map((collector, index) => (
-                    <div key={index} className="collector-item">
-                      <div className="collector-header">
-                        <h5>{collector.name}</h5>
-                        <div className="collector-metrics">
-                          <span className="collector-time">{formatDuration(collector.time_ms)}</span>
-                          <span className="collector-percentage">({safeToFixed(collector.percentage || 0, 1)}%)</span>
-                        </div>
-                      </div>
-                      {collector.reason && (
-                        <p className="collector-reason">{collector.reason}</p>
-                      )}
-                      
-                      {/* Display collector children if they exist */}
-                      {collector.children && collector.children.length > 0 && (
-                        <div className="collector-children">
-                          <h6 className="collector-children-header">Sub-Collectors:</h6>
-                          <div className="collector-children-list">
-                            {collector.children.map((child, childIndex) => (
-                              <div key={childIndex} className="collector-child-item">
-                                <div className="collector-child-header">
-                                  <h6>{child.name}</h6>
-                                  <div className="collector-child-metrics">
-                                    <span className="collector-child-time">{formatDuration(child.time_ms)}</span>
-                                    <span className="collector-child-percentage">({safeToFixed(child.percentage || 0, 1)}%)</span>
-                                  </div>
-                                </div>
-                                {child.reason && (
-                                  <p className="collector-child-reason">{child.reason}</p>
-                                )}
-                                
-                                {/* Recursively display nested children if they exist */}
-                                {child.children && child.children.length > 0 && (
-                                  <div className="collector-nested-children">
-                                    <h6 className="collector-nested-header">Nested Collectors:</h6>
-                                    <div className="collector-nested-list">
-                                      {child.children.map((nestedChild, nestedIndex) => (
-                                        <div key={nestedIndex} className="collector-nested-item">
-                                          <div className="collector-nested-header">
-                                            <h6>{nestedChild.name}</h6>
-                                            <div className="collector-nested-metrics">
-                                              <span className="collector-nested-time">{formatDuration(nestedChild.time_ms)}</span>
-                                              <span className="collector-nested-percentage">({safeToFixed(nestedChild.percentage || 0, 1)}%)</span>
-                                            </div>
-                                          </div>
-                                          {nestedChild.reason && (
-                                            <p className="collector-nested-reason">{nestedChild.reason}</p>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        
-        {/* Aggregations section - always show if there are aggregations, regardless of query type */}
-        {hasAggregations && (
-          <div className="detail-section aggregations-section">
-            <div 
-              className={`section-header ${expandedSections.aggregations ? 'expanded' : ''}`}
-              onClick={() => toggleSection('aggregations')}
-            >
-              <h4>Aggregations ({aggregations.length})</h4>
-              <span className="toggle-icon">{expandedSections.aggregations ? '▼' : '▶'}</span>
-            </div>
-            
-            {expandedSections.aggregations && (
-              <div className="section-content">
-                <div className="section-intro">
-                  Aggregations compute metrics and statistics by processing the matched documents.
-                </div>
-                <div className="aggregations-list">
-                  {aggregations.map((agg, index) => (
-                    <div key={index} className="aggregation-item">
-                      <div className="aggregation-header">
-                        <h5>{agg.description || agg.type || `Aggregation ${index + 1}`}</h5>
-                        <div className="aggregation-metrics">
-                          <span className="aggregation-time">{formatDuration(agg.time_in_nanos / 1000000)}</span>
-                          <span className="aggregation-percentage">({safeToFixed((agg.time_in_nanos / 1000000 / timeMs) * 100, 1)}%)</span>
-                        </div>
-                      </div>
-                      <div className="aggregation-details">
-                        <p className="aggregation-type">
-                          <strong>Type:</strong> {agg.type || 'Unknown type'}
-                        </p>
-                        {agg.breakdown && Object.keys(agg.breakdown).length > 0 && (
-                          <div className="aggregation-breakdown">
-                            <h6>Breakdown:</h6>
-                            <div className="aggregation-breakdown-data">
-                              {Object.entries(agg.breakdown)
-                                .filter(([key, value]) => typeof value === 'number' && value > 0 && !key.endsWith('_count'))
-                                .sort(([_, a], [__, b]) => b - a)
-                                .map(([key, value]) => (
-                                  <div key={key} className="breakdown-item-small">
-                                    <span className="breakdown-label-small">{key.replace(/_/g, ' ')}</span>
-                                    <span className="breakdown-value-small">{formatNumber(value)} ns</span>
-                                  </div>
-                                ))
-                              }
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        
-        {/* Display for individual aggregation type - Keep this section as it shows details for the selected aggregation */}
-        {isAggregationType && query.breakdown && Object.keys(query.breakdown).length > 0 && (
-          <div className="detail-section">
-            <div 
-              className={`section-header ${expandedSections.aggTypeBreakdown ? 'expanded' : ''}`} 
-              onClick={() => toggleSection('aggTypeBreakdown')}
-            >
-              <h4>Operation Breakdown: {query.description || query.queryName || query.type}</h4>
-              <span className="toggle-icon">{expandedSections.aggTypeBreakdown ? '▼' : '▶'}</span>
-            </div>
-            
-            {expandedSections.aggTypeBreakdown && (
-              <div className="section-content">
-                <div className="section-intro">
-                  This shows the detailed timing for each phase of the {query.queryName || query.type} aggregation.
-                </div>
-                <div className="breakdown-controls">
-                  <button 
-                    className={`breakdown-toggle ${!showRawBreakdown ? 'active' : ''}`}
-                    onClick={() => setShowRawBreakdown(false)}
-                  >
-                    Visual Breakdown
-                  </button>
-                  <button 
-                    className={`breakdown-toggle ${showRawBreakdown ? 'active' : ''}`}
-                    onClick={() => setShowRawBreakdown(true)}
-                  >
-                    Raw Data
-                  </button>
+            {/* Collector Details section - only show for collector queries */}
+            {isCollector && hasCollectorData && (
+              <div className="detail-section collector-details-section">
+                <div 
+                  className={`section-header ${expandedSections.collectors ? 'expanded' : ''}`}
+                  onClick={() => toggleSection('collectors')}
+                >
+                  <h4>Collector Details</h4>
+                  <span className="toggle-icon">{expandedSections.collectors ? '▼' : '▶'}</span>
                 </div>
                 
-                <div className="breakdown-list">
-                  {!showRawBreakdown ? 
-                    renderBreakdownItems(combinedBreakdown) :
-                    renderRawBreakdown(combinedRawBreakdown)
-                  }
+                {expandedSections.collectors && (
+                  <div className="section-content">
+                    <div className="section-intro">
+                      These collectors handle the gathering and processing of matching documents.
+                    </div>
+                    <div className="collectors-list">
+                      {query.collectorData.map((collector, index) => (
+                        <div key={index} className="collector-item">
+                          <div className="collector-header">
+                            <h5>{collector.name}</h5>
+                            <div className="collector-metrics">
+                              <span className="collector-time">{formatDuration(collector.time_ms)}</span>
+                              <span className="collector-percentage">({safeToFixed(collector.percentage || 0, 1)}%)</span>
+                            </div>
+                          </div>
+                          {collector.reason && (
+                            <p className="collector-reason">{collector.reason}</p>
+                          )}
+                          
+                          {/* Display collector children if they exist */}
+                          {collector.children && collector.children.length > 0 && (
+                            <div className="collector-children">
+                              <h6 className="collector-children-header">Sub-Collectors:</h6>
+                              <div className="collector-children-list">
+                                {collector.children.map((child, childIndex) => (
+                                  <div key={childIndex} className="collector-child-item">
+                                    <div className="collector-child-header">
+                                      <h6>{child.name}</h6>
+                                      <div className="collector-child-metrics">
+                                        <span className="collector-child-time">{formatDuration(child.time_ms)}</span>
+                                        <span className="collector-child-percentage">({safeToFixed(child.percentage || 0, 1)}%)</span>
+                                      </div>
+                                    </div>
+                                    {child.reason && (
+                                      <p className="collector-child-reason">{child.reason}</p>
+                                    )}
+                                    
+                                    {/* Recursively display nested children if they exist */}
+                                    {child.children && child.children.length > 0 && (
+                                      <div className="collector-nested-children">
+                                        <h6 className="collector-nested-header">Nested Collectors:</h6>
+                                        <div className="collector-nested-list">
+                                          {child.children.map((nestedChild, nestedIndex) => (
+                                            <div key={nestedIndex} className="collector-nested-item">
+                                              <div className="collector-nested-header">
+                                                <h6>{nestedChild.name}</h6>
+                                                <div className="collector-nested-metrics">
+                                                  <span className="collector-nested-time">{formatDuration(nestedChild.time_ms)}</span>
+                                                  <span className="collector-nested-percentage">({safeToFixed(nestedChild.percentage || 0, 1)}%)</span>
+                                                </div>
+                                              </div>
+                                              {nestedChild.reason && (
+                                                <p className="collector-nested-reason">{nestedChild.reason}</p>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Aggregations section - always show if there are aggregations, regardless of query type */}
+            {hasAggregations && (
+              <div className="detail-section aggregations-section">
+                <div 
+                  className={`section-header ${expandedSections.aggregations ? 'expanded' : ''}`}
+                  onClick={() => toggleSection('aggregations')}
+                >
+                  <h4>Aggregations ({aggregations.length})</h4>
+                  <span className="toggle-icon">{expandedSections.aggregations ? '▼' : '▶'}</span>
                 </div>
+                
+                {expandedSections.aggregations && (
+                  <div className="section-content">
+                    <div className="section-intro">
+                      Aggregations compute metrics and statistics by processing the matched documents.
+                    </div>
+                    <div className="aggregations-list">
+                      {aggregations.map((agg, index) => {
+                        console.log('Aggregation object:', agg);
+                        return (
+                          <div key={index} className="aggregation-item">
+                            <div className="aggregation-header">
+                              <h5>{agg.type || `Aggregation ${index + 1}`}</h5>
+                              <div className="aggregation-metrics">
+                                <span className="aggregation-time">{formatDuration(agg.time_in_nanos / 1000000)}</span>
+                                <span className="aggregation-percentage">({safeToFixed((agg.time_in_nanos / 1000000 / timeMs) * 100, 1)}%)</span>
+                              </div>
+                            </div>
+                            {/* Always show aggregation description below the header if present */}
+                            {agg.description && (
+                              <div className="aggregation-description" style={{ marginBottom: '0.5rem', color: '#555', fontStyle: 'italic' }}>
+                                {agg.description}
+                              </div>
+                            )}
+                            <div className="aggregation-details">
+                              <p className="aggregation-type">
+                                <strong>Type:</strong> {agg.type || 'Unknown type'}
+                              </p>
+                              {agg.breakdown && Object.keys(agg.breakdown).length > 0 && (
+                                <div className="aggregation-breakdown">
+                                  <h6>Breakdown:</h6>
+                                  <div className="aggregation-breakdown-data">
+                                    {Object.entries(agg.breakdown)
+                                      .filter(([key, value]) => typeof value === 'number' && value > 0 && !key.endsWith('_count'))
+                                      .sort(([_, a], [__, b]) => b - a)
+                                      .map(([key, value]) => (
+                                        <div key={key} className="breakdown-item-small">
+                                          <span className="breakdown-label-small">{key.replace(/_/g, ' ')}</span>
+                                          <span className="breakdown-value-small">{formatNumber(value)} ns</span>
+                                        </div>
+                                      ))
+                                    }
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Display for individual aggregation type - Keep this section as it shows details for the selected aggregation */}
+            {isAggregationType && query.breakdown && Object.keys(query.breakdown).length > 0 && (
+              <div className="detail-section">
+                <div 
+                  className={`section-header ${expandedSections.aggTypeBreakdown ? 'expanded' : ''}`} 
+                  onClick={() => toggleSection('aggTypeBreakdown')}
+                >
+                  <h4>Operation Breakdown: {query.description || query.queryName || query.type}</h4>
+                  <span className="toggle-icon">{expandedSections.aggTypeBreakdown ? '▼' : '▶'}</span>
+                </div>
+                
+                {expandedSections.aggTypeBreakdown && (
+                  <div className="section-content">
+                    <div className="section-intro">
+                      This shows the detailed timing for each phase of the {query.queryName || query.type} aggregation.
+                    </div>
+                    <div className="breakdown-controls">
+                      <button 
+                        className={`breakdown-toggle ${!showRawBreakdown ? 'active' : ''}`}
+                        onClick={() => setShowRawBreakdown(false)}
+                      >
+                        Visual Breakdown
+                      </button>
+                      <button 
+                        className={`breakdown-toggle ${showRawBreakdown ? 'active' : ''}`}
+                        onClick={() => setShowRawBreakdown(true)}
+                      >
+                        Raw Data
+                      </button>
+                    </div>
+                    
+                    <div className="breakdown-list">
+                      {!showRawBreakdown ? 
+                        renderBreakdownItems(combinedBreakdown) :
+                        renderRawBreakdown(combinedRawBreakdown)
+                      }
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 };
+
+// --- Add this helper component at the bottom of the file: ---
+function CollectorTree({ collector, level }) {
+  return (
+    <div style={{ marginLeft: level * 18, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontWeight: 600 }}>{collector.name}</span>
+        <span style={{ color: '#475569', fontFamily: 'monospace', fontSize: 13 }}>{collector.time_ms ? `${collector.time_ms.toFixed(2)} ms` : ''}</span>
+        <span style={{ color: '#64748b', fontSize: 12 }}>({collector.percentage ? `${collector.percentage.toFixed(1)}%` : ''})</span>
+      </div>
+      {collector.reason && (
+        <div style={{ color: '#475569', fontSize: 13, fontStyle: 'italic', marginLeft: 4 }}>{collector.reason}</div>
+      )}
+      {collector.children && collector.children.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          {collector.children.map((child, idx) => (
+            <CollectorTree key={child.name + '-' + idx} collector={child} level={level + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default QueryDetail;

@@ -591,13 +591,13 @@ const ProfilerDashboard = ({ data, updateData }) => {
       </header>
 
       <div className="dashboard-actions">
-        <div className="upload-container">
-          <div className="upload-options">
+        <div className="profile-actions">
+          <div className="profile-actions-left">
             <button
-              className="visualize-profile-btn"
+              className="visualize-btn"
               onClick={handleVisualizeProfile}
             >
-              VISUALIZE PROFILE
+              Visualize Profile
             </button>
             <input
               type="file"
@@ -607,22 +607,29 @@ const ProfilerDashboard = ({ data, updateData }) => {
               style={{ display: 'none' }}
             />
             <button
-              className="upload-file-btn"
+              className="upload-btn"
               onClick={() => document.getElementById('profile-upload').click()}
             >
               Upload File
             </button>
           </div>
-          
-          {showJsonInput && (
-            <div className="json-input-container">
-              <textarea
-                className="json-input"
-                value={jsonInput}
-                onChange={(e) => setJsonInput(e.target.value)}
-                placeholder="Paste your profile output in JSON format here..."
-                rows={10}
-              />
+          <button
+            className="compare-btn"
+            onClick={handleDualQueryComparison}
+          >
+            Compare Profiles
+          </button>
+        </div>
+        {showJsonInput && (
+          <div className="json-input-container">
+            <textarea
+              className="json-input"
+              value={jsonInput}
+              onChange={(e) => setJsonInput(e.target.value)}
+              placeholder="Paste your profile output in JSON format here..."
+              rows={10}
+            />
+            <div className="action-buttons">
               <button
                 className="submit-json-btn"
                 onClick={handleJsonInput}
@@ -631,17 +638,17 @@ const ProfilerDashboard = ({ data, updateData }) => {
                 Visualize
               </button>
             </div>
-          )}
-          
-          {uploadError && <div className="upload-error">{uploadError}</div>}
-        </div>
+          </div>
+        )}
+        {uploadError && <div className="upload-error">{uploadError}</div>}
+      </div>
 
-        <button
-          className="dual-query-btn"
-          onClick={handleDualQueryComparison}
-        >
-          COMPARE TWO QUERIES
-        </button>
+      <div className="summary-separator">
+        <ProfilerSummary 
+          executionTime={executionTime} 
+          shardInfo={shardInfo} 
+          hitsInfo={hitsInfo} 
+        />
       </div>
 
       {data && data.profileData && (
@@ -649,14 +656,10 @@ const ProfilerDashboard = ({ data, updateData }) => {
           data={data} 
           selectedProfile={selectedProfile}
           setSelectedProfile={setSelectedProfile}
+          setProfileToCompare={showComparisonResults ? setProfileToCompare : () => {}}
+          profileToCompare={showComparisonResults ? profileToCompare : null}
         />
       )}
-
-      <ProfilerSummary 
-        executionTime={executionTime} 
-        shardInfo={shardInfo} 
-        hitsInfo={hitsInfo} 
-      />
 
       {showComparisonResults && selectedProfile && profileToCompare && (
         <ProfilerComparisonResults 

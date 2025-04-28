@@ -1,427 +1,455 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronRight, ChevronDown } from 'react-feather';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './ProfilerQueries.css';
 import QueryDetail from './QueryDetail';
-
-// Helper function to recursively transform a query and its children
-const transformQueryWithChildren = (query, index, totalQueryTimeNanos) => {
-  const formattedBreakdown = {};
-  if (query.breakdown) {
-    const breakdownGroups = {
-      'build_scorer': ['build_scorer', 'build_scorer_count'],
-      'create_weight': ['create_weight', 'create_weight_count'],
-      'next_doc': ['next_doc', 'next_doc_count'],
-      'advance': ['advance', 'advance_count'],
-      'score': ['score', 'score_count'],
-      'match': ['match', 'match_count'],
-      'compute_max_score': ['compute_max_score', 'compute_max_score_count'],
-      'set_min_competitive_score': ['set_min_competitive_score', 'set_min_competitive_score_count'],
-      'shallow_advance': ['shallow_advance', 'shallow_advance_count']
-    };
-    Object.entries(breakdownGroups).forEach(([groupKey, keys]) => {
-      if (keys.some(key => query.breakdown[key] > 0)) {
-        formattedBreakdown[groupKey] = keys.reduce((sum, key) => {
-          if (key.endsWith('_count')) return sum;
-          return sum + (query.breakdown[key] || 0);
-        }, 0);
+    
+    // Helper function to recursively transform a query and its children
+    const transformQueryWithChildren = (query, index, totalQueryTimeNanos, path = '') => {
+      const nodeId = path ? `${path}-${index}` : `${index}`;
+      const formattedBreakdown = {};
+      if (query.breakdown) {
+        const breakdownGroups = {
+          'build_scorer': ['build_scorer', 'build_scorer_count'],
+          'create_weight': ['create_weight', 'create_weight_count'],
+          'next_doc': ['next_doc', 'next_doc_count'],
+          'advance': ['advance', 'advance_count'],
+          'score': ['score', 'score_count'],
+          'match': ['match', 'match_count'],
+          'compute_max_score': ['compute_max_score', 'compute_max_score_count'],
+          'set_min_competitive_score': ['set_min_competitive_score', 'set_min_competitive_score_count'],
+          'shallow_advance': ['shallow_advance', 'shallow_advance_count']
+        };
+        Object.entries(breakdownGroups).forEach(([groupKey, keys]) => {
+          if (keys.some(key => query.breakdown[key] > 0)) {
+            formattedBreakdown[groupKey] = keys.reduce((sum, key) => {
+              if (key.endsWith('_count')) return sum;
+              return sum + (query.breakdown[key] || 0);
+            }, 0);
+          }
+        });
+        Object.entries(query.breakdown).forEach(([key, value]) => {
+          if (key.endsWith('_count')) return;
+          const isInGroup = Object.values(breakdownGroups).some(
+            groupKeys => groupKeys.includes(key)
+          );
+          if (!isInGroup && typeof value === 'number' && value > 0) {
+            formattedBreakdown[key] = value;
+          }
+        });
       }
-    });
-    Object.entries(query.breakdown).forEach(([key, value]) => {
-      if (key.endsWith('_count')) return;
-      const isInGroup = Object.values(breakdownGroups).some(
-        groupKeys => groupKeys.includes(key)
+      const transformedChildren = (query.children || []).map((child, childIndex) => 
+        transformQueryWithChildren(child, childIndex, totalQueryTimeNanos, nodeId)
       );
-      if (!isInGroup && typeof value === 'number' && value > 0) {
-        formattedBreakdown[key] = value;
-      }
-    });
-  }
-  const transformedChildren = (query.children || []).map((child, childIndex) =>
-    transformQueryWithChildren(child, childIndex, totalQueryTimeNanos)
-  );
-  return {
-    id: `query-${index}`,
-    queryName: query.type || 'Unknown Query',
-    type: query.type || 'Unknown Query',
-    description: query.description || '',
-    operation: query.description || query.type,
-    totalDuration: query.time_in_nanos ? (query.time_in_nanos / 1000000) : 0,
-    time_ms: query.time_in_nanos ? (query.time_in_nanos / 1000000) : 0,
-    percentage: query.time_in_nanos ? (query.time_in_nanos / totalQueryTimeNanos) * 100 : 0,
-    breakdown: formattedBreakdown,
-    rawBreakdown: query.breakdown || {},
-    children: transformedChildren
-  };
-};
-
+      return {
+        id: `query-${nodeId}`,
+        queryName: query.type || 'Unknown Query',
+        type: query.type || 'Unknown Query',
+        description: query.description || '',
+        operation: query.description || query.type,
+        totalDuration: query.time_in_nanos ? (query.time_in_nanos / 1000000) : 0,
+        time_ms: query.time_in_nanos ? (query.time_in_nanos / 1000000) : 0,
+        percentage: query.time_in_nanos ? (query.time_in_nanos / totalQueryTimeNanos) * 100 : 0,
+        breakdown: formattedBreakdown,
+        rawBreakdown: query.breakdown || {},
+        children: transformedChildren
+      };
+    };
+    
 // Helper function to recursively process collector children
-const processCollectorChildren = (collector, totalQueryTimeNanos) => {
-  const result = {
-    name: collector.name,
-    reason: collector.reason,
-    time_ms: collector.time_in_nanos / 1000000,
-    percentage: (collector.time_in_nanos / totalQueryTimeNanos) * 100
+const processCollectorChildren = (collector, totalQueryTimeNanos, index = 0) => {
+  const id = collector.name ? `collector-${collector.name.replace(/\s+/g, '-')}-${index}` : `collector-${index}`;
+  const type = collector.name || 'Collector';
+  const queryName = collector.name || 'Collector';
+  const description = collector.reason || '';
+  const totalDuration = collector.time_in_nanos ? (collector.time_in_nanos / 1000000) : 0;
+  const time_ms = collector.time_in_nanos ? (collector.time_in_nanos / 1000000) : 0;
+  const percentage = collector.time_in_nanos ? (collector.time_in_nanos / totalQueryTimeNanos) * 100 : 0;
+  // If breakdown is available, use it; else empty
+  const breakdown = collector.breakdown || {};
+  const rawBreakdown = collector.breakdown || {};
+  const children = (collector.children || []).map((child, idx) => processCollectorChildren(child, totalQueryTimeNanos, idx));
+        return {
+    id,
+    type,
+      queryName,
+    description,
+    totalDuration,
+    time_ms,
+    percentage,
+    breakdown,
+    rawBreakdown,
+    children,
   };
-  if (collector.children && collector.children.length > 0) {
-    result.children = collector.children.map(child =>
-      processCollectorChildren(child, totalQueryTimeNanos)
-    );
-  }
-  return result;
-};
-
-// Helper function to recursively transform an aggregation and its children
-const transformAggregation = (agg, index, totalQueryTimeNanos) => {
-  const formattedBreakdown = {};
-  const rawBreakdown = agg.breakdown || {};
-  if (agg.breakdown) {
-    const breakdownGroups = {
-      'build_aggregation': ['build_aggregation', 'build_aggregation_count'],
-      'collect': ['collect', 'collect_count'],
-      'initialize': ['initialize', 'initialize_count'],
-      'post_collection': ['post_collection', 'post_collection_count'],
-      'reduce': ['reduce', 'reduce_count'],
-      'build_leaf_collector': ['build_leaf_collector', 'build_leaf_collector_count'],
     };
-    Object.entries(breakdownGroups).forEach(([groupKey, keys]) => {
-      if (keys.some(key => agg.breakdown[key] > 0)) {
-        formattedBreakdown[groupKey] = keys.reduce((sum, key) => {
-          if (key.endsWith('_count')) return sum;
-          return sum + (agg.breakdown[key] || 0);
-        }, 0);
+    
+    // Helper function to recursively transform an aggregation and its children
+    const transformAggregation = (agg, index, totalQueryTimeNanos, path = '') => {
+      const nodeId = path ? `${path}-${index}` : `${index}`;
+      const formattedBreakdown = {};
+      const rawBreakdown = agg.breakdown || {};
+      if (agg.breakdown) {
+        const breakdownGroups = {
+          'build_aggregation': ['build_aggregation', 'build_aggregation_count'],
+          'collect': ['collect', 'collect_count'],
+          'initialize': ['initialize', 'initialize_count'],
+          'post_collection': ['post_collection', 'post_collection_count'],
+          'reduce': ['reduce', 'reduce_count'],
+          'build_leaf_collector': ['build_leaf_collector', 'build_leaf_collector_count'],
+        };
+        Object.entries(breakdownGroups).forEach(([groupKey, keys]) => {
+          if (keys.some(key => agg.breakdown[key] > 0)) {
+            formattedBreakdown[groupKey] = keys.reduce((sum, key) => {
+              if (key.endsWith('_count')) return sum;
+              return sum + (agg.breakdown[key] || 0);
+            }, 0);
+          }
+        });
+        Object.entries(agg.breakdown).forEach(([key, value]) => {
+          if (key.endsWith('_count')) return;
+          const isInGroup = Object.values(breakdownGroups).some(
+            groupKeys => groupKeys.includes(key)
+          );
+          if (!isInGroup && typeof value === 'number' && value > 0) {
+            formattedBreakdown[key] = value;
+          }
+        });
       }
-    });
-    Object.entries(agg.breakdown).forEach(([key, value]) => {
-      if (key.endsWith('_count')) return;
-      const isInGroup = Object.values(breakdownGroups).some(
-        groupKeys => groupKeys.includes(key)
-      );
-      if (!isInGroup && typeof value === 'number' && value > 0) {
-        formattedBreakdown[key] = value;
-      }
-    });
+  const transformedChildren = (agg.children || []).map((child, childIndex) =>
+    transformAggregation(child, childIndex, totalQueryTimeNanos, nodeId)
+  );
+      return {
+        id: `agg-${nodeId}`,
+        queryName: agg.type || 'Unknown Aggregation',
+        type: agg.type || 'Unknown Aggregation',
+        description: agg.description || '',
+        operation: agg.type || 'Unknown Aggregation',
+        totalDuration: agg.time_in_nanos ? (agg.time_in_nanos / 1000000) : 0,
+        time_ms: agg.time_in_nanos ? (agg.time_in_nanos / 1000000) : 0,
+        percentage: agg.time_in_nanos ? (agg.time_in_nanos / totalQueryTimeNanos) * 100 : 0,
+        breakdown: formattedBreakdown,
+        rawBreakdown: rawBreakdown,
+        children: transformedChildren
+      };
+    };
+    
+// Helper to get type class and icon
+const getTypeClassAndIcon = (type) => {
+  switch (type) {
+    case 'Query': return { className: 'type-Query', icon: '🔍' };
+    case 'BooleanQuery': return { className: 'type-BooleanQuery', icon: '⎇' };
+    case 'TermQuery': return { className: 'type-TermQuery', icon: '🔤' };
+    case 'ConstantScoreQuery': return { className: 'type-ConstantScoreQuery', icon: '⚖️' };
+    case 'Aggregations':
+    case 'agg-group': return { className: 'type-Aggregations', icon: '📊' };
+    case 'RangeQuery': return { className: 'type-RangeQuery', icon: '↔️' };
+    case 'MatchAllDocsQuery': return { className: 'type-MatchAllDocsQuery', icon: '🌐' };
+    case 'Avg':
+    case 'Sum':
+    case 'Count': return { className: 'type-Avg', icon: '∑' };
+    default: return { className: '', icon: '•' };
   }
-  // Do not include children for flat aggregation rows
-  return {
-    id: `agg-${index}`,
-    queryName: agg.type || 'Unknown Aggregation',
-    type: agg.type || 'Unknown Aggregation',
-    description: '',
-    operation: agg.type || 'Unknown Aggregation',
-    totalDuration: agg.time_in_nanos ? (agg.time_in_nanos / 1000000) : 0,
-    time_ms: agg.time_in_nanos ? (agg.time_in_nanos / 1000000) : 0,
-    percentage: agg.time_in_nanos ? (agg.time_in_nanos / totalQueryTimeNanos) * 100 : 0,
-    breakdown: formattedBreakdown,
-    rawBreakdown: rawBreakdown,
-    children: []
-  };
 };
 
-const ProfilerQueries = ({ 
-  data, 
-  compareMode, 
-  selectedProfile, 
-  setSelectedProfile,
-  profileToCompare,
-  setProfileToCompare
-}) => {
-  const [expandedQueries, setExpandedQueries] = useState({});
-  const [processedData, setProcessedData] = useState([]);
-  const [lastExpandAction, setLastExpandAction] = useState(null);
-  const [newlyExpandedId, setNewlyExpandedId] = useState(null);
+// Dynamic color map for query types (use pastel colors for all types)
+const typeColorMap = {
+  ConstantScoreQuery: '#ffe0b2', // pastel orange
+  BooleanQuery: '#d1c4e9',      // pastel purple
+  TermQuery: '#b2dfdb',         // pastel teal
+  RangeQuery: '#ffcdd2',        // pastel red
+  MatchAllDocsQuery: '#fff9c4', // pastel yellow
+  Aggregations: '#b3e5fc',      // pastel blue
+  Rewrite: '#c8e6c9',           // pastel green
+  Collectors: '#f8bbd0',        // pastel pink
+  Collector: '#f8bbd0',         // pastel pink (for individual collector nodes)
+  Query: '#bbdefb',              // pastel blue
+};
+const getTypeColor = (type) => typeColorMap[type] || '#e0e7ef';
 
-  // Process the raw query data into a grouped, hierarchical structure
-  const processQueryData = useCallback((data) => {
+const ProfilerQueries = ({
+  data,
+  compareMode,
+  profileToCompare = null,
+  setProfileToCompare = () => {},
+}) => {
+  const [processedQueryData, setProcessedQueryData] = useState([]);
+  const [processedAggData, setProcessedAggData] = useState([]);
+  const [showHierarchy, setShowHierarchy] = useState('query'); // 'query' or 'agg'
+  const [expandedNodes, setExpandedNodes] = useState({});
+  const [leftPanelWidth, setLeftPanelWidth] = useState(320);
+  const [selectedProfileId, setSelectedProfileId] = useState(null);
+  const containerRef = useRef(null);
+  const dragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(320);
+
+  // Process query and aggregation data
+  const processData = useCallback((data) => {
     if (!data || !data.profileData || !data.profileData.shards) {
-      return [];
+      return { queries: [], aggs: [] };
     }
     try {
-      // Extract from the first shard's first search
       const queries = data.profileData.shards[0]?.searches?.[0]?.query || [];
+      const rewrite_time = data.profileData.shards[0]?.searches?.[0]?.rewrite_time;
       const collectors = data.profileData.shards[0]?.searches?.[0]?.collector || [];
-      const rewriteTime = data.profileData.shards[0]?.searches?.[0]?.rewrite_time || 0;
-      const searchAggregations = data.profileData.shards[0]?.searches?.[0]?.aggregations || [];
-      const shardAggregations = data.profileData.shards[0]?.aggregations || [];
-      const aggregations = [...searchAggregations, ...shardAggregations];
-
-      // Calculate total query time
-      const totalQueryTimeNanos =
-        queries.reduce((sum, q) => sum + (q.time_in_nanos || 0), 0) +
-        collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0) +
-        aggregations.reduce((sum, a) => sum + (a.time_in_nanos || 0), 0) +
-        rewriteTime;
-
-      // Transform queries
-      const totalQueryTime = queries.reduce((sum, q) => sum + (q.time_in_nanos || 0), 0);
-      const queryChild = queries.length > 0 ? [{
+      const totalQueryTimeNanos = queries.reduce((sum, q) => sum + (q.time_in_nanos || 0), 0);
+      const children = queries.map((q, i) => transformQueryWithChildren(q, i, totalQueryTimeNanos));
+      if (rewrite_time) {
+        children.push({
+          id: 'rewrite',
+          queryName: 'Rewrite',
+          type: 'Rewrite',
+          description: 'Query Rewrite Phase',
+          totalDuration: rewrite_time / 1000000,
+          time_ms: rewrite_time / 1000000,
+          percentage: totalQueryTimeNanos > 0 ? (rewrite_time / totalQueryTimeNanos) * 100 : 0,
+          children: [],
+          breakdown: {},
+          rawBreakdown: {},
+        });
+      }
+      if (collectors.length > 0) {
+        const totalCollectorTime = collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0);
+        const processedCollectors = collectors.map((c, i) => {
+          const processed = processCollectorChildren(c, totalQueryTimeNanos, i);
+          // Add a fallback id and type for tree rendering
+        return {
+            ...processed,
+            id: `collector-${i}`,
+            type: processed.name || 'Collector',
+            queryName: processed.name || 'Collector',
+            displayName: processed.name || 'Collector',
+            children: processed.children || [],
+        };
+      });
+        children.push({
+          id: 'collectors',
+          queryName: 'Collectors',
+          type: 'Collectors',
+          displayName: 'Collectors',
+          description: 'Query Collectors',
+          totalDuration: totalCollectorTime / 1000000,
+          time_ms: totalCollectorTime / 1000000,
+          percentage: totalQueryTimeNanos > 0 ? (totalCollectorTime / totalQueryTimeNanos) * 100 : 0,
+          children: processedCollectors,
+          collectorData: processedCollectors,
+          breakdown: {},
+          rawBreakdown: {},
+        });
+      }
+      const queryChild = children.length > 0 ? [{
         id: 'query-group',
         queryName: 'Query',
         type: 'Query',
         description: '',
         operation: 'Query',
-        totalDuration: totalQueryTime / 1000000,
-        time_ms: totalQueryTime / 1000000,
-        percentage: (totalQueryTime / totalQueryTimeNanos) * 100,
-        children: []
+        totalDuration: totalQueryTimeNanos / 1000000,
+        time_ms: totalQueryTimeNanos / 1000000,
+        percentage: 100,
+        children,
       }] : [];
-      // Rewrite time as child
-      const rewriteChild = rewriteTime > 0 ? [{
-        id: 'query-rewrite-group',
-        queryName: 'Rewrite Time',
-        type: 'QueryRewrite',
+
+      // Aggregations
+      const searchAggregations = data.profileData.shards[0]?.searches?.[0]?.aggregations || [];
+      const shardAggregations = data.profileData.shards[0]?.aggregations || [];
+      const allAggs = [...searchAggregations, ...shardAggregations];
+      const totalAggTimeNanos = allAggs.reduce((sum, a) => sum + (a.time_in_nanos || 0), 0);
+      const aggChild = allAggs.length > 0 ? [{
+        id: 'agg-group',
+        queryName: 'Aggregations',
+        type: 'Aggregations',
         description: '',
-        operation: 'Rewrite Time',
-        totalDuration: rewriteTime / 1000000,
-        time_ms: rewriteTime / 1000000,
-        percentage: (rewriteTime / totalQueryTimeNanos) * 100,
-        children: []
-      }] : [];
-      // Collectors as child
-      const collectorChildren = collectors.length > 0 ? [{
-        id: `collector-group`,
-        queryName: 'Collectors',
-        type: 'Collectors',
-        description: '',
-        operation: 'Collectors',
-        totalDuration: collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0) / 1000000,
-        time_ms: collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0) / 1000000,
-        percentage: collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0) / totalQueryTimeNanos * 100,
-        collectorData: collectors.map(c => processCollectorChildren(c, totalQueryTimeNanos)),
-        children: []
+        operation: 'Aggregations',
+        totalDuration: totalAggTimeNanos / 1000000,
+        time_ms: totalAggTimeNanos / 1000000,
+        percentage: 100,
+        children: allAggs.map((a, i) => transformAggregation(a, i, totalAggTimeNanos))
       }] : [];
 
-      // SEARCH GROUP
-      const searchChildren = [
-        ...queryChild,
-        ...rewriteChild,
-        ...collectorChildren
-      ];
-      const searchGroup = {
-        name: 'Search',
-        queries: searchChildren,
-        totalDuration: searchChildren.reduce((sum, q) => sum + q.totalDuration, 0),
-        count: searchChildren.length,
-        type: 'Search'
-      };
-
-      // AGGREGATIONS GROUP
-      const transformedAggs = aggregations.map((agg, i) => transformAggregation(agg, i, totalQueryTimeNanos));
-      const aggsGroup = transformedAggs.length > 0 ? {
-        name: 'Aggregations',
-        queries: transformedAggs,
-        totalDuration: transformedAggs.reduce((sum, a) => sum + a.totalDuration, 0),
-        count: transformedAggs.length,
-        type: 'Aggregations'
-      } : null;
-
-      // Only return groups that have children
-      return aggsGroup ? [searchGroup, aggsGroup] : [searchGroup];
+      return { queries: queryChild, aggs: aggChild };
     } catch (error) {
-      console.error('[ProfilerQueries] Error extracting queries:', error);
-      return [];
+      console.error('[ProfilerQueries] Error extracting queries/aggregations:', error);
+      return { queries: [], aggs: [] };
     }
   }, []);
 
-  // Auto-expand the first query group when data changes
   useEffect(() => {
-    const processed = processQueryData(data);
-    setProcessedData(processed);
-
-    // Create a new expanded state object
-    const newExpandedState = { ...expandedQueries };
+    const { queries, aggs } = processData(data);
+    setProcessedQueryData(queries);
+    setProcessedAggData(aggs);
+  }, [data, processData]);
     
-    // Auto-expand the first group if it exists
-    if (processed.length > 0) {
-      const firstGroupName = processed[0].name;
-      console.debug(`[ProfilerQueries] Auto-expanding first group: ${firstGroupName}`);
-      newExpandedState[firstGroupName] = true;
-    }
-    
-    // Always auto-expand important sections: QueryRewrite, Collectors, and Aggregations
-    processed.forEach(group => {
-      const queryType = group.queries[0]?.type || '';
-      if (queryType === 'QueryRewrite' || queryType === 'Collectors' || 
-          queryType === 'Aggregations' || queryType === 'AggregationType') {
-        console.debug(`[ProfilerQueries] Auto-expanding special group: ${group.name}`);
-        newExpandedState[group.name] = true;
+  // Helper to find a node by ID in the tree
+  const findNodeById = (nodes, id) => {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      if (node.children) {
+        const found = findNodeById(node.children, id);
+        if (found) return found;
       }
-    });
-    
-    setExpandedQueries(newExpandedState);
-  }, [data, processQueryData]);
+    }
+    return null;
+  };
 
-  // Force expand a specific query
-  const forceExpand = useCallback((queryName) => {
-    console.debug(`[ProfilerQueries] Force expanding query: ${queryName}`);
-    setExpandedQueries(prev => ({ ...prev, [queryName]: true }));
-    setNewlyExpandedId(queryName);
+  // Automatically select the first node in the shown hierarchy
+  useEffect(() => {
+    const dataList = showHierarchy === 'query' ? processedQueryData : processedAggData;
+    if (dataList.length > 0 && dataList[0].children.length > 0 && !selectedProfileId) {
+      // Find the first leaf node in the hierarchy
+      const findFirstLeaf = (nodes) => {
+        for (const node of nodes) {
+          if (node.children && node.children.length > 0) {
+            const leaf = findFirstLeaf(node.children);
+            if (leaf) return leaf;
+          } else {
+            return node;
+          }
+        }
+        return null;
+      };
+      const firstLeaf = findFirstLeaf(dataList[0].children);
+      if (firstLeaf) {
+        setSelectedProfileId(firstLeaf.id);
+      }
+    }
+  }, [showHierarchy, processedQueryData, processedAggData, selectedProfileId]);
     
-    // Reset newly expanded ID after animation completes
-    setTimeout(() => {
-      setNewlyExpandedId(null);
-    }, 1000);
+  // Expand/collapse logic
+  const toggleExpand = (nodeId) => {
+    setExpandedNodes(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
+  };
+
+  // Render the hierarchy as a collapsible tree
+  const renderHierarchy = (nodes, depth = 0) => (
+    <ul
+      className="query-hierarchy-list"
+      style={{ marginLeft: depth === 0 ? 0 : 16, paddingLeft: 0 }}
+      key={`ul-${depth}-${nodes[0]?.id || 'root'}`}
+    >
+      {nodes.map((node, idx) => {
+        const hasChildren = node.children && node.children.length > 0;
+        const expanded = expandedNodes[node.id] !== false;
+        // Use a composite key for extra safety
+        const nodeKey = node.id ? `${node.id}-${depth}-${idx}` : `node-${depth}-${idx}`;
+    return (
+          <li
+            key={nodeKey}
+            className={`query-hierarchy-node${selectedProfileId === node.id ? ' selected' : ''}`}
+            style={{
+              paddingLeft: hasChildren ? 0 : 8,
+              borderLeft: `3px solid ${getTypeColor(node.type)}`,
+            }}
+          >
+            <div className="query-hierarchy-row" onClick={e => { e.stopPropagation(); setSelectedProfileId(node.id); }}>
+              {hasChildren && (
+                <span
+                  className={`tree-chevron${expanded ? ' expanded' : ''}`}
+                  onClick={e => { e.stopPropagation(); toggleExpand(node.id); }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={expanded ? 'Collapse' : 'Expand'}
+                >
+                  {expanded ? '▾' : '▸'}
+                </span>
+              )}
+              <span className="query-hierarchy-label">{node.type || node.queryName}</span>
+          </div>
+            {hasChildren && expanded && renderHierarchy(node.children, depth + 1)}
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  // Resizer drag logic
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!dragging.current) return;
+      const min = 180, max = 600;
+      let containerLeft = 0;
+      if (containerRef.current) {
+        containerLeft = containerRef.current.getBoundingClientRect().left;
+      }
+      const mouseX = e.clientX - containerLeft;
+      let newWidth = mouseX;
+      if (newWidth < min) newWidth = min;
+      if (newWidth > max) newWidth = max;
+      setLeftPanelWidth(newWidth);
+    };
+    const handleMouseUp = () => { dragging.current = false; };
+    if (dragging.current) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
   }, []);
 
-  // Handle query expansion toggle
-  const handleToggleExpand = (queryName) => {
-    const newExpandedState = !expandedQueries[queryName];
-    console.debug(`[ProfilerQueries] ${newExpandedState ? 'Expanding' : 'Collapsing'} query: ${queryName}`);
-    
-    setExpandedQueries(prev => ({ ...prev, [queryName]: newExpandedState }));
-    setLastExpandAction({
-      queryName,
-      action: newExpandedState ? 'expanded' : 'collapsed',
-      timestamp: new Date().toISOString()
-    });
-    
-    if (newExpandedState) {
-      setNewlyExpandedId(queryName);
-      // Reset newly expanded ID after animation completes
-      setTimeout(() => {
-        setNewlyExpandedId(null);
-      }, 1000);
-    }
-  };
-
-  // Handle query selection
-  const handleQuerySelect = (query) => {
-    console.debug('[ProfilerQueries] Selecting query:', query.id);
-    try {
-      // Prepare the query with original query data
-      const enhancedQuery = {
-        ...query,
-        originalQueryData: data.originalQueryData || null
-      };
-
-      // Special handling for aggregation type
-      if (query.type === 'Aggregations') {
-        console.debug('[ProfilerQueries] Selected an aggregation group with children:', query.children?.length || 0);
-      }
-
-      if (compareMode && !selectedProfile) {
-        setSelectedProfile(enhancedQuery);
-      } else if (compareMode && selectedProfile && selectedProfile.id !== query.id) {
-        setProfileToCompare(enhancedQuery);
-      } else if (!compareMode) {
-        setSelectedProfile(enhancedQuery);
-        setProfileToCompare(null);
-      }
-      
-      // Auto-expand the selected query
-      forceExpand(query.name);
-    } catch (error) {
-      console.error('[ProfilerQueries] Error selecting query:', error);
-    }
-  };
-
-  // Format duration for display
-  const formatDuration = (ms) => {
-    if (ms < 1) {
-      // Show precise value with 3 decimal places for small values
-      return `${ms.toFixed(3)} ms`;
-    }
-    if (ms < 1000) return `${Math.round(ms)} ms`;
-    return `${(ms / 1000).toFixed(2)} s`;
-  };
-
-  // Render query/aggregation children recursively
-  const renderChildren = (children, groupName, depth = 1) => {
-    return children.map((child) => (
-      <div
-        key={child.id}
-        className={`query-child${selectedProfile && selectedProfile.id === child.id ? ' selected' : ''}`}
-        style={{ marginLeft: depth * 20 }}
-        onClick={() => handleQuerySelect(child, groupName)}
-        data-query-type={child.type || child.queryName || ''}
-      >
-        <div className="query-header">
-          <div className="query-indent"></div>
-          <div className="query-name">{child.operation || child.description || child.queryName}</div>
-        </div>
-        <div className="query-metrics">
-          <div className="metric">{formatDuration(child.totalDuration)}</div>
-        </div>
-        {child.children && child.children.length > 0 && (
-          <div className="query-children-nested">
-            {renderChildren(child.children, groupName, depth + 1)}
-          </div>
-        )}
-      </div>
-    ));
-  };
-
-  // Check for data availability
-  if (!data) {
-    console.warn('[ProfilerQueries] No data available');
-    return <div className="no-data">No data available</div>;
-  }
-
-  // If we have processed data but it's empty, show no queries message
-  if (processedData.length === 0) {
-    console.warn('[ProfilerQueries] No queries found in the data');
-    return <div className="no-queries">No queries found in the profiler data</div>;
-  }
-
+  // Layout: two columns with tabs
   return (
-    <div className="profiler-queries">
-      <div className="queries-list">
-        {processedData.map((group) => (
-          <div
-            key={group.name}
-            className="query-group"
-            data-type={group.type}
-            data-name={group.name}
-          >
-            <div
-              className="query-item"
-              onClick={() => handleToggleExpand(group.name)}
-            >
-              <div className="query-header">
-                <button
-                  className="expand-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleToggleExpand(group.name);
-                  }}
-                  data-expanded={expandedQueries[group.name] ? 'true' : 'false'}
-                  aria-label={expandedQueries[group.name] ? 'Collapse' : 'Expand'}
-                >
-                  {expandedQueries[group.name] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                </button>
-                <div className="query-name">
-                  <span className="bullet">•</span>
-                  {group.name}
-                </div>
-              </div>
-              <div className="query-metrics">
-                <div className="metric">{group.count} items</div>
-                <div className="metric">{formatDuration(group.totalDuration)}</div>
-              </div>
-            </div>
-            {expandedQueries[group.name] && (
-              <div
-                className="query-children"
-                data-expanded={newlyExpandedId === group.name ? 'new' : 'true'}
+    <div
+      className="profiler-queries-clean-layout"
+      ref={containerRef}
+      style={{ display: 'flex', height: '100vh', minWidth: 0, minHeight: 0, position: 'relative' }}
               >
-                {renderChildren(group.queries, group.name)}
+                <div 
+        className="profiler-queries-left-panel"
+        style={{ width: leftPanelWidth, minWidth: 180, maxWidth: 600, height: '100%', minHeight: 0, boxSizing: 'border-box', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+                >
+        <div className="query-tabs">
+          <button
+            className={`query-tab${showHierarchy === 'query' ? ' active' : ''}`}
+            onClick={() => setShowHierarchy('query')}
+          >
+            Query
+          </button>
+          <button
+            className={`query-tab${showHierarchy === 'agg' ? ' active' : ''}`}
+            onClick={() => setShowHierarchy('agg')}
+            disabled={processedAggData.length === 0}
+          >
+            Aggregations
+          </button>
+                  </div>
+        {showHierarchy === 'query' && processedQueryData.length > 0 && processedQueryData[0].children.length > 0 && (
+          <div className="query-hierarchy-container" style={{ flex: 1, overflowY: 'auto', height: '100%', minHeight: 0 }}>
+            {renderHierarchy(processedQueryData[0].children)}
+                  </div>
+        )}
+        {showHierarchy === 'agg' && processedAggData.length > 0 && processedAggData[0].children.length > 0 && (
+          <div className="query-hierarchy-container" style={{ flex: 1, overflowY: 'auto', height: '100%', minHeight: 0 }}>
+            {renderHierarchy(processedAggData[0].children)}
+                  </div>
+                )}
               </div>
+      <div
+        className="resizer"
+        onMouseDown={e => {
+          dragging.current = true;
+          dragStartX.current = e.clientX;
+          dragStartWidth.current = leftPanelWidth;
+        }}
+        style={{ cursor: 'col-resize', width: 7, background: '#dbeafe', zIndex: 10, position: 'relative' }}
+      />
+      <div
+        className="profiler-queries-right-panel"
+        style={{ flex: 1, minWidth: 0, height: '100%', minHeight: 0, boxSizing: 'border-box', overflowY: 'auto' }}
+      >
+          {selectedProfileId ? (
+          <QueryDetail
+            query={findNodeById(
+              showHierarchy === 'query' ? (processedQueryData[0]?.children || []) : (processedAggData[0]?.children || []),
+              selectedProfileId
             )}
-          </div>
-        ))}
+            compareQuery={profileToCompare}
+            compareMode={compareMode}
+          />
+          ) : (
+          <div className="query-detail-placeholder" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>
+            Select a node in the hierarchy to view its operational breakdown and children.
+            </div>
+          )}
       </div>
-      
-      {/* Hidden debug info */}
-      <div className="debug-info" style={{ display: 'none' }}>
-        {lastExpandAction && JSON.stringify(lastExpandAction)}
-      </div>
-
-      {selectedProfile && (
-        <QueryDetail 
-          query={selectedProfile} 
-          compareQuery={profileToCompare}
-          compareMode={compareMode}
-        />
-      )}
     </div>
   );
 };
