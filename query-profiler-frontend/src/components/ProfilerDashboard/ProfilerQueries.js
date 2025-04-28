@@ -3,7 +3,7 @@ import './ProfilerQueries.css';
 import QueryDetail from './QueryDetail';
     
     // Helper function to recursively transform a query and its children
-    const transformQueryWithChildren = (query, index, totalQueryTimeNanos, path = '') => {
+    const transformQueryWithChildren = (query, index, parentTimeNanos, path = '') => {
       const nodeId = path ? `${path}-${index}` : `${index}`;
       const formattedBreakdown = {};
       if (query.breakdown) {
@@ -36,8 +36,9 @@ import QueryDetail from './QueryDetail';
           }
         });
       }
+      const thisTimeNanos = query.time_in_nanos || 0;
       const transformedChildren = (query.children || []).map((child, childIndex) => 
-        transformQueryWithChildren(child, childIndex, totalQueryTimeNanos, nodeId)
+        transformQueryWithChildren(child, childIndex, thisTimeNanos, nodeId)
       );
       return {
         id: `query-${nodeId}`,
@@ -45,9 +46,9 @@ import QueryDetail from './QueryDetail';
         type: query.type || 'Unknown Query',
         description: query.description || '',
         operation: query.description || query.type,
-        totalDuration: query.time_in_nanos ? (query.time_in_nanos / 1000000) : 0,
-        time_ms: query.time_in_nanos ? (query.time_in_nanos / 1000000) : 0,
-        percentage: query.time_in_nanos ? (query.time_in_nanos / totalQueryTimeNanos) * 100 : 0,
+        totalDuration: thisTimeNanos / 1000000,
+        time_ms: thisTimeNanos / 1000000,
+        percentage: parentTimeNanos > 0 ? (thisTimeNanos / parentTimeNanos) * 100 : 0,
         breakdown: formattedBreakdown,
         rawBreakdown: query.breakdown || {},
         children: transformedChildren
@@ -55,18 +56,18 @@ import QueryDetail from './QueryDetail';
     };
     
 // Helper function to recursively process collector children
-const processCollectorChildren = (collector, totalQueryTimeNanos, index = 0) => {
+const processCollectorChildren = (collector, parentCollectorTimeNanos, index = 0) => {
   const id = collector.name ? `collector-${collector.name.replace(/\s+/g, '-')}-${index}` : `collector-${index}`;
   const type = collector.name || 'Collector';
   const queryName = collector.name || 'Collector';
   const description = collector.reason || '';
-  const totalDuration = collector.time_in_nanos ? (collector.time_in_nanos / 1000000) : 0;
-  const time_ms = collector.time_in_nanos ? (collector.time_in_nanos / 1000000) : 0;
-  const percentage = collector.time_in_nanos ? (collector.time_in_nanos / totalQueryTimeNanos) * 100 : 0;
-  // If breakdown is available, use it; else empty
+  const thisTimeNanos = collector.time_in_nanos || 0;
+  const totalDuration = thisTimeNanos / 1000000;
+  const time_ms = thisTimeNanos / 1000000;
+  const percentage = parentCollectorTimeNanos > 0 ? (thisTimeNanos / parentCollectorTimeNanos) * 100 : 0;
   const breakdown = collector.breakdown || {};
   const rawBreakdown = collector.breakdown || {};
-  const children = (collector.children || []).map((child, idx) => processCollectorChildren(child, totalQueryTimeNanos, idx));
+  const children = (collector.children || []).map((child, idx) => processCollectorChildren(child, thisTimeNanos, idx));
         return {
     id,
     type,
@@ -209,17 +210,16 @@ const ProfilerQueries = ({
       if (collectors.length > 0) {
         const totalCollectorTime = collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0);
         const processedCollectors = collectors.map((c, i) => {
-          const processed = processCollectorChildren(c, totalQueryTimeNanos, i);
-          // Add a fallback id and type for tree rendering
-        return {
+          const processed = processCollectorChildren(c, totalCollectorTime, i);
+          return {
             ...processed,
             id: `collector-${i}`,
-            type: processed.name || 'Collector',
-            queryName: processed.name || 'Collector',
-            displayName: processed.name || 'Collector',
+            type: c.name || 'Collector',
+            queryName: c.name || 'Collector',
+            displayName: c.name || 'Collector',
             children: processed.children || [],
-        };
-      });
+          };
+        });
         children.push({
           id: 'collectors',
           queryName: 'Collectors',
@@ -228,7 +228,7 @@ const ProfilerQueries = ({
           description: 'Query Collectors',
           totalDuration: totalCollectorTime / 1000000,
           time_ms: totalCollectorTime / 1000000,
-          percentage: totalQueryTimeNanos > 0 ? (totalCollectorTime / totalQueryTimeNanos) * 100 : 0,
+          percentage: 100, // Always 100% for the root collectors node
           children: processedCollectors,
           collectorData: processedCollectors,
           breakdown: {},
@@ -332,13 +332,13 @@ const ProfilerQueries = ({
     return (
           <li
             key={nodeKey}
-            className={`query-hierarchy-node${selectedProfileId === node.id ? ' selected' : ''}`}
+            className={"query-hierarchy-node"}
             style={{
               paddingLeft: hasChildren ? 0 : 8,
               borderLeft: `3px solid ${getTypeColor(node.type)}`,
             }}
           >
-            <div className="query-hierarchy-row" onClick={e => { e.stopPropagation(); setSelectedProfileId(node.id); }}>
+            <div className={`query-hierarchy-row${selectedProfileId === node.id ? ' selected' : ''}`} onClick={e => { e.stopPropagation(); setSelectedProfileId(node.id); }}>
               {hasChildren && (
                 <span
                   className={`tree-chevron${expanded ? ' expanded' : ''}`}
@@ -403,14 +403,16 @@ const ProfilerQueries = ({
           >
             Searches
           </button>
-          <button
-            className={`query-tab${showHierarchy === 'agg' ? ' active' : ''}`}
-            onClick={() => setShowHierarchy('agg')}
-            disabled={processedAggData.length === 0}
-          >
-            Aggregations
-          </button>
-                  </div>
+          {processedAggData.length > 0 && processedAggData[0].children && processedAggData[0].children.length > 0 && (
+            <button
+              className={`query-tab${showHierarchy === 'agg' ? ' active' : ''}`}
+              onClick={() => setShowHierarchy('agg')}
+              disabled={processedAggData.length === 0}
+            >
+              Aggregations
+            </button>
+          )}
+        </div>
         {showHierarchy === 'query' && processedQueryData.length > 0 && processedQueryData[0].children.length > 0 && (
           <div className="query-hierarchy-container" style={{ flex: 1, overflowY: 'auto', height: '100%', minHeight: 0 }}>
             {renderHierarchy(processedQueryData[0].children)}

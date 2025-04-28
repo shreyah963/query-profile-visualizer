@@ -510,106 +510,6 @@ const QueryDetail = ({ query }) => {
     return false;
   };
 
-  // Get explanation content for current query type
-  const renderExplanationContent = () => {
-    if (isConstantScore) {
-      return (
-        <div className="constant-score-explanation">
-          <p>
-            ConstantScoreQuery wraps a filter query and gives all matching documents a constant score equal to the query boost.
-            Unlike regular queries, filter queries don't calculate relevance scores, making them more efficient for filtering operations.
-          </p>
-          <p>
-            This query type is optimized for scenarios where you need to filter documents without caring about scoring relevance.
-            It generally performs better than equivalent queries that calculate scores.
-          </p>
-        </div>
-      );
-    } else if (isQueryRewrite) {
-      return (
-        <div className="rewrite-explanation">
-          <p>
-            Query rewriting is the process where OpenSearch transforms and optimizes the query before execution. 
-            This includes tasks such as analyzing text, expanding wildcards, simplifying Boolean expressions, 
-            and other optimizations to improve search performance.
-          </p>
-          <p>
-            A higher rewrite time relative to the total query time might indicate a complex query structure
-            that required extensive preprocessing before execution.
-          </p>
-        </div>
-      );
-    } else if (isCollector) {
-      return (
-        <div className="collector-explanation">
-          <p>
-            Query Collectors are responsible for gathering the matching documents after the query execution phase.
-            They handle tasks like sorting, scoring, and organizing the final result set that will be returned to the client.
-          </p>
-          {hasCollectorData && (
-            <p>
-              This query used the following collectors:
-              <ul>
-                {query.collectorData.map((collector, index) => (
-                  <li key={index}>
-                    <strong>{collector.name}</strong> ({formatDuration(collector.time_ms)}): 
-                    {collector.reason ? ` ${collector.reason}` : ' Document collection phase'}
-                  </li>
-                ))}
-              </ul>
-            </p>
-          )}
-        </div>
-      );
-    } else if (isAggregationType) {
-      // Handle specific aggregation type explanations
-      const aggType = query.type || query.queryName || '';
-      
-      if (aggType.includes('AvgAggregator')) {
-        return (
-          <div className="aggregation-explanation">
-            <p>
-              The Average (Avg) Aggregator computes the average of numeric values extracted from the matched documents. 
-              It's commonly used to calculate mean values across a dataset.
-            </p>
-            <p>
-              This aggregation type requires two phases: collecting values from all matched documents, 
-              and then computing the final average by dividing the sum by the count.
-            </p>
-          </div>
-        );
-      } else if (aggType.includes('TermsAggregator') || aggType.includes('NonCollectingAggregator')) {
-        return (
-          <div className="aggregation-explanation">
-            <p>
-              The Terms Aggregator groups documents based on field values, creating "buckets" of documents 
-              that share the same terms. It's used for categorizing results by specific field values.
-            </p>
-            <p>
-              This aggregation type involves building specialized collectors to gather and organize terms,
-              and then post-processing to construct the final term buckets with counts.
-            </p>
-          </div>
-        );
-      } else {
-        return (
-          <div className="aggregation-explanation">
-            <p>
-              Aggregations are operations that process the matched documents to compute metrics, statistics, 
-              or to organize documents into buckets based on criteria like field values or ranges.
-            </p>
-            <p>
-              This aggregation type ({aggType}) involves several phases including initialization, 
-              collecting values from matched documents, and computing final results.
-            </p>
-          </div>
-        );
-      }
-    } else {
-      return <pre>{queryDescription}</pre>;
-    }
-  };
-
   // Helper function to toggle a query node's expanded state
   const toggleQueryNode = (queryId) => {
     setExpandedQueryNodes(prev => ({
@@ -743,11 +643,11 @@ const QueryDetail = ({ query }) => {
       <div className="detail-metrics">
         <div className="detail-metric">
           <span className="metric-label">Total time:</span>
-          <span className="metric-value highlight">{formatDuration(timeMs)}</span>
+          <span className="metric-value-total">{formatDuration(timeMs)}</span>
         </div>
         <div className="detail-metric">
           <span className="metric-label">Percentage of total execution:</span>
-          <span className="metric-value">{safeToFixed(percentage, 1)}%</span>
+          <span className="metric-value-percentage">{safeToFixed(percentage, 1)}%</span>
         </div>
       </div>
 
@@ -874,34 +774,6 @@ const QueryDetail = ({ query }) => {
                 )}
               </div>
             )}
-
-            {/* Query Explanation section */}
-            <div className="detail-section">
-              <div 
-                className={`section-header ${expandedSections.explanation ? 'expanded' : ''}`}
-                onClick={() => toggleSection('explanation')}
-              >
-                <h4>Query Explanation</h4>
-                <span className="toggle-icon">{expandedSections.explanation ? '▼' : '▶'}</span>
-              </div>
-              
-              {expandedSections.explanation && (
-                <div className="section-content">
-                  <div className="query-explanation">
-                    {renderExplanationContent()}
-                    <div className="explanation-note">
-                      <p>
-                        <strong>Query type:</strong> {queryType}
-                      </p>
-                      <p>
-                        This is a {safeLowerCase(queryIntentLabel)} that took {formatDuration(timeMs)} 
-                        ({safeToFixed(percentage, 1)}% of the total execution time).
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* Collector Details section - only show for collector queries */}
             {isCollector && hasCollectorData && (
@@ -1101,23 +973,29 @@ const QueryDetail = ({ query }) => {
 
 // --- Add this helper component at the bottom of the file: ---
 function CollectorTree({ collector, level }) {
+  // Similar to renderQueryHierarchy, but for collectors
   return (
-    <div style={{ marginLeft: level * 18, marginBottom: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontWeight: 600 }}>{collector.name}</span>
-        <span style={{ color: '#475569', fontFamily: 'monospace', fontSize: 13 }}>{collector.time_ms ? `${collector.time_ms.toFixed(2)} ms` : ''}</span>
-        <span style={{ color: '#64748b', fontSize: 12 }}>({collector.percentage ? `${collector.percentage.toFixed(1)}%` : ''})</span>
-      </div>
-      {collector.reason && (
-        <div style={{ color: '#475569', fontSize: 13, fontStyle: 'italic', marginLeft: 4 }}>{collector.reason}</div>
-      )}
-      {collector.children && collector.children.length > 0 && (
-        <div style={{ marginTop: 4 }}>
-          {collector.children.map((child, idx) => (
-            <CollectorTree key={child.name + '-' + idx} collector={child} level={level + 1} />
-          ))}
+    <div className={`query-hierarchy-level level-${level}`} style={{ marginLeft: level * 18 }}>
+      <div className="query-node" style={{ marginBottom: 10, background: '#f8f9fa', border: '1px solid #e0e0e0', borderRadius: 6, padding: 12 }}>
+        <div className="query-node-header">
+          <h5 style={{ margin: 0 }}>{collector.name || 'Collector'}</h5>
+          <div className="query-node-metrics">
+            <span className="query-node-time">{collector.time_ms ? `${collector.time_ms.toFixed(3)} ms` : ''}</span>
+            <span className="query-node-percentage">({collector.percentage ? `${collector.percentage.toFixed(1)}%` : ''})</span>
+          </div>
         </div>
-      )}
+        {collector.reason && (
+          <p className="query-node-description" style={{ margin: '6px 0 0 0', fontStyle: 'italic', color: '#475569' }}>{collector.reason}</p>
+        )}
+        {/* Recursively render children */}
+        {collector.children && collector.children.length > 0 && (
+          <div className="query-node-children">
+            {collector.children.map((child, idx) => (
+              <CollectorTree key={child.name + '-' + idx} collector={child} level={level + 1} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
