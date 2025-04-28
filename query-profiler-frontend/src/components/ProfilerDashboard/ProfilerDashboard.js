@@ -119,6 +119,9 @@ const ProfilerDashboard = ({ data, updateData }) => {
   const [inlineComparisonResults, setInlineComparisonResults] = useState(false);
   const [query1Template, setQuery1Template] = useState('default');
   const [query2Template, setQuery2Template] = useState('default');
+  const [uploadError, setUploadError] = useState(null);
+  const [jsonInput, setJsonInput] = useState('');
+  const [showJsonInput, setShowJsonInput] = useState(false);
   
   // Update query text when template changes
   const updateQueryFromTemplate = (templateName, queryId) => {
@@ -163,6 +166,13 @@ const ProfilerDashboard = ({ data, updateData }) => {
   const handleDualQueryComparison = () => {
     setShowDualQueryInput(true);
     setInlineComparisonResults(false);
+    setQueryError(null);
+    setShowJsonInput(false); // Ensure JSON input is hidden
+  };
+
+  const handleVisualizeProfile = () => {
+    setShowJsonInput(!showJsonInput);
+    setShowDualQueryInput(false); // Ensure dual query mode is disabled
     setQueryError(null);
   };
 
@@ -352,6 +362,129 @@ const ProfilerDashboard = ({ data, updateData }) => {
     }, 100);
   };
 
+  // Transform profile data into the expected format
+  const transformProfileData = (profileData) => {
+    console.log('Original profile data:', profileData);
+
+    // If the data is already in the correct format, return it as is
+    if (profileData.profileData && profileData.profileData.shards) {
+      console.log('Data already in correct format');
+      return profileData;
+    }
+
+    // Handle data that's nested under a 'profile' key
+    if (profileData.profile) {
+      console.log('Data found under profile key');
+      return {
+        profileData: profileData.profile
+      };
+    }
+
+    // Create the expected structure
+    const transformedData = {
+      profileData: {
+        shards: [{
+          id: '0',
+          searches: [{
+            query: [],
+            collector: [],
+            aggregations: [],
+            rewrite_time: 0
+          }]
+        }]
+      }
+    };
+
+    // Process queries
+    if (profileData.queries) {
+      console.log('Processing queries:', profileData.queries);
+      transformedData.profileData.shards[0].searches[0].query = profileData.queries.map(query => ({
+        type: query.type || 'Unknown',
+        description: query.description || '',
+        time_in_nanos: query.time_in_nanos || 0,
+        breakdown: query.breakdown || {},
+        children: query.children || []
+      }));
+    }
+
+    // Process collectors
+    if (profileData.collectors) {
+      console.log('Processing collectors:', profileData.collectors);
+      transformedData.profileData.shards[0].searches[0].collector = profileData.collectors.map(collector => ({
+        name: collector.name || 'Unknown',
+        reason: collector.reason || '',
+        time_in_nanos: collector.time_in_nanos || 0,
+        breakdown: collector.breakdown || {},
+        children: collector.children || []
+      }));
+    }
+
+    // Process aggregations
+    if (profileData.aggregations) {
+      console.log('Processing aggregations:', profileData.aggregations);
+      transformedData.profileData.shards[0].searches[0].aggregations = profileData.aggregations.map(agg => ({
+        type: agg.type || 'Unknown',
+        description: agg.description || '',
+        time_in_nanos: agg.time_in_nanos || 0,
+        breakdown: agg.breakdown || {},
+        children: agg.children || []
+      }));
+    }
+
+    // Add rewrite time if available
+    if (profileData.rewrite_time) {
+      console.log('Adding rewrite time:', profileData.rewrite_time);
+      transformedData.profileData.shards[0].searches[0].rewrite_time = profileData.rewrite_time;
+    }
+
+    console.log('Transformed data:', transformedData);
+    return transformedData;
+  };
+
+  // Handle profile file upload
+  const handleProfileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const profileData = JSON.parse(e.target.result);
+        console.log('Parsed profile data:', profileData);
+        // Transform the profile data into the expected format
+        const transformedData = transformProfileData(profileData);
+        console.log('Final transformed data:', transformedData);
+        if (updateData && typeof updateData === 'function') {
+          updateData(transformedData);
+          setUploadError(null);
+          setShowJsonInput(false);
+        }
+      } catch (error) {
+        setUploadError('Invalid JSON format. Please upload a valid profile output file.');
+        console.error('Error parsing profile JSON:', error);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Handle direct JSON input
+  const handleJsonInput = () => {
+    try {
+      const profileData = JSON.parse(jsonInput);
+      console.log('Parsed JSON input:', profileData);
+      // Transform the profile data into the expected format
+      const transformedData = transformProfileData(profileData);
+      console.log('Final transformed data:', transformedData);
+      if (updateData && typeof updateData === 'function') {
+        updateData(transformedData);
+        setUploadError(null);
+      }
+    } catch (error) {
+      setUploadError('Invalid JSON format. Please enter valid JSON.');
+      console.error('Error parsing JSON input:', error);
+    }
+  };
+
   // Render dual query comparison UI
   if (showDualQueryInput) {
     return (
@@ -457,22 +590,51 @@ const ProfilerDashboard = ({ data, updateData }) => {
         </div>
       </header>
 
-      {/* Query Input Section */}
-      <QueryInput onQueryExecuted={handleQueryExecuted} />
-
-      <ProfilerSummary 
-        executionTime={executionTime} 
-        shardInfo={shardInfo} 
-        hitsInfo={hitsInfo} 
-      />
-
       <div className="dashboard-actions">
-        <button
-          className="new-query-btn"
-          onClick={() => document.getElementById('query-input-trigger').click()}
-        >
-          NEW QUERY
-        </button>
+        <div className="upload-container">
+          <div className="upload-options">
+            <button
+              className="visualize-profile-btn"
+              onClick={handleVisualizeProfile}
+            >
+              VISUALIZE PROFILE
+            </button>
+            <input
+              type="file"
+              id="profile-upload"
+              accept=".json"
+              onChange={handleProfileUpload}
+              style={{ display: 'none' }}
+            />
+            <button
+              className="upload-file-btn"
+              onClick={() => document.getElementById('profile-upload').click()}
+            >
+              Upload File
+            </button>
+          </div>
+          
+          {showJsonInput && (
+            <div className="json-input-container">
+              <textarea
+                className="json-input"
+                value={jsonInput}
+                onChange={(e) => setJsonInput(e.target.value)}
+                placeholder="Paste your profile output in JSON format here..."
+                rows={10}
+              />
+              <button
+                className="submit-json-btn"
+                onClick={handleJsonInput}
+                disabled={!jsonInput.trim()}
+              >
+                Visualize
+              </button>
+            </div>
+          )}
+          
+          {uploadError && <div className="upload-error">{uploadError}</div>}
+        </div>
 
         <button
           className="dual-query-btn"
@@ -486,6 +648,12 @@ const ProfilerDashboard = ({ data, updateData }) => {
         data={data} 
         selectedProfile={selectedProfile}
         setSelectedProfile={setSelectedProfile}
+      />
+
+      <ProfilerSummary 
+        executionTime={executionTime} 
+        shardInfo={shardInfo} 
+        hitsInfo={hitsInfo} 
       />
 
       {showComparisonResults && selectedProfile && profileToCompare && (
