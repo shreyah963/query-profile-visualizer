@@ -875,20 +875,22 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
       );
     }
 
-    // Group differences by path and queryType
-    const groupedDifferences = differences.reduce((acc, diff) => {
-      const key = `${diff.path}${diff.queryType ? ` (${diff.queryType})` : ''}`;
-      if (!acc[key]) {
-        acc[key] = {
-          path: diff.path,
-          queryType: diff.queryType,
-          description: diff.description,
-          differences: []
-        };
-      }
-      acc[key].differences.push(diff);
-      return acc;
-    }, {});
+    // Filter out reorder differences and group remaining differences by path and queryType
+    const groupedDifferences = differences
+      .filter(diff => diff.type !== 'reorder') // Filter out reorder differences
+      .reduce((acc, diff) => {
+        const key = `${diff.path}${diff.queryType ? ` (${diff.queryType})` : ''}`;
+        if (!acc[key]) {
+          acc[key] = {
+            path: diff.path,
+            queryType: diff.queryType,
+            description: diff.description,
+            differences: []
+          };
+        }
+        acc[key].differences.push(diff);
+        return acc;
+      }, {});
       
       return (
       <div className="structure-differences">
@@ -912,17 +914,7 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
                 let className = '';
                 let message = '';
                 
-                if (diff.type === 'reorder') {
-                  className = 'field-reordered';
-                  message = (
-                    <>
-                      Field "{diff.field}" has changed position
-                      <span className="position-info">
-                        (from position {diff.oldPosition} to {diff.newPosition})
-                      </span>
-                    </>
-                  );
-                } else if (diff.type === 'missing') {
+                if (diff.type === 'missing') {
                   className = 'field-missing';
                   message = (
                     <span className="missing-field-message">

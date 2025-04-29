@@ -519,7 +519,7 @@ const QueryDetail = ({ query }) => {
   };
 
   // Recursive function to render query hierarchy with proper indentation
-  const renderQueryHierarchy = (queryChildren, level) => {
+  const renderQueryHierarchy = (queryChildren, level, rootTimeMs) => {
     if (!queryChildren || queryChildren.length === 0) return null;
     
     return (
@@ -531,17 +531,8 @@ const QueryDetail = ({ query }) => {
           const queryType = child.type || child.queryName || 'Unknown';
           const childTimeMs = child.time_ms || child.totalDuration || 0;
           
-          // Log child query timing for debugging
-          if (level === 0) {
-            console.log('Child query timing:', {
-              queryId,
-              queryType,
-              time_ms: child.time_ms,
-              totalDuration: child.totalDuration,
-              childTimeMs,
-              percentage: child.percentage
-            });
-          }
+          // Calculate percentage relative to root query's time
+          const percentage = (childTimeMs / rootTimeMs) * 100;
           
           return (
             <div key={queryId} className="query-hierarchy-item">
@@ -562,9 +553,7 @@ const QueryDetail = ({ query }) => {
                   <h5>{queryType}</h5>
                   <div className="query-node-metrics">
                     <span className="query-node-time">{formatDuration(childTimeMs)}</span>
-                    {!hasChildren && (
-                      <span className="query-node-percentage">({safeToFixed(child.percentage || 0, 1)}%)</span>
-                    )}
+                    <span className="query-node-percentage">({safeToFixed(percentage, 1)}%)</span>
                   </div>
                 </div>
                 {child.description && (
@@ -597,7 +586,7 @@ const QueryDetail = ({ query }) => {
                 {/* Recursively render children */}
                 {hasChildren && isExpanded && (
                   <div className="query-node-children">
-                    {renderQueryHierarchy(child.children, level + 1)}
+                    {renderQueryHierarchy(child.children, level + 1, rootTimeMs)}
                   </div>
                 )}
               </div>
@@ -809,7 +798,7 @@ const QueryDetail = ({ query }) => {
                       <p className="query-node-description">{queryDescription}</p>
                       {/* Render children with connecting lines */}
                       <div className="query-node-children">
-                        {renderQueryHierarchy(children, 0)}
+                        {renderQueryHierarchy(children, 0, timeMs)}
                       </div>
                     </div>
                   </div>
