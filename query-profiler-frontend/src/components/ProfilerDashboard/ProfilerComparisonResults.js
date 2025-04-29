@@ -115,330 +115,352 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
 
   // Format breakdown key - shared helper function for displaying metrics consistently
   const formatBreakdownKey = (key) => {
-    // Skip metrics that end with _count
-    if (key.endsWith('_count')) return { operation: key };
-    
-    // Extract the base operation name without query types for simplified view
-    
-    // Replace underscores with spaces
-    let displayKey = key.replace(/_/g, ' ');
-    
-    // If we're keeping it simple, just extract the last part after the last underscore
-    // This will typically be the operation name like 'build_scorer' -> 'scorer'
-    if (key.includes('_')) {
-      const parts = key.split('_');
-      // Get the last meaningful operation part
-      displayKey = parts[parts.length - 1];
-    }
-    
-    // Handle compound query types (like "ConstantScoreQuery BooleanQuery 0 Build Scorer")
-    if (displayKey.includes('Query')) {
-      // Split by space to separate query types from operations
-      const parts = displayKey.split(' ');
-      
-      // Extract only the operation parts, filtering out query types and numeric indices
-      const operations = parts.filter(part => 
-        !part.includes('Query') && isNaN(parseInt(part))
-      );
-      
-      // If we have operations, use them; otherwise, keep the original
-      if (operations.length > 0) {
-        displayKey = operations.join(' ');
-      }
-    }
-    
-    // Clean up common prefixes for easier reading
-    displayKey = displayKey
-      .replace(/^agg /i, '')
-      .replace(/^collector /i, '');
-    
-    // Make first letter of each word uppercase
-    displayKey = displayKey.replace(/\b\w/g, c => c.toUpperCase());
-    
-    return { operation: displayKey };
+    // Return the original key without any modifications
+    return { operation: key };
   };
-
-  // Function to extract breakdown data from a profile
-  const getBreakdown = (profile) => {
-    // Start with an empty object for collecting breakdowns
-    let combinedBreakdown = {};
-    
-    // Check if breakdown is directly available
-    if (profile.breakdown && Object.keys(profile.breakdown).length > 0) {
-      combinedBreakdown = {...profile.breakdown};
-    }
-    
-    // Check if profileData is available with breakdowns
-    if (profile.profileData?.shards && profile.profileData.shards.length > 0) {
-      const firstShard = profile.profileData.shards[0];
-      
-      // Check for query breakdowns
-      if (firstShard.searches && firstShard.searches.length > 0) {
-        const search = firstShard.searches[0];
-        
-        // Get rewrite time
-        if (search.rewrite_time) {
-          combinedBreakdown['rewrite_time'] = search.rewrite_time;
-        }
-        
-        // Process all query breakdowns
-        if (search.query && search.query.length > 0) {
-          search.query.forEach((query, index) => {
-            // Add main query breakdown
-            if (query.breakdown) {
-              Object.entries(query.breakdown).forEach(([key, value]) => {
-                const metricKey = index === 0 ? key : `${query.type}_${key}`;
-                combinedBreakdown[metricKey] = value;
-              });
-            }
-            
-            // Recursively process all child query breakdowns
-            const processChildren = (children, prefix) => {
-              if (!children || children.length === 0) return;
-              
-              children.forEach((child, childIndex) => {
-                if (child.breakdown) {
-                  const childPrefix = `${prefix ? prefix + '_' : ''}${child.type}_${childIndex}`;
-                  Object.entries(child.breakdown).forEach(([key, value]) => {
-                    // Only add significant values to avoid cluttering
-                    if (value > 1000) { // Only metrics with > 1000 nanoseconds (1μs)
-                      combinedBreakdown[`${childPrefix}_${key}`] = value;
-                    }
-                  });
-                }
-                
-                // Process further nested children
-                if (child.children && child.children.length > 0) {
-                  processChildren(child.children, `${prefix ? prefix + '_' : ''}${child.type}_${childIndex}`);
-                }
-              });
-            };
-            
-            // Process children with proper prefixing
-            if (query.children && query.children.length > 0) {
-              processChildren(query.children, query.type);
-            }
-          });
-        }
-        
-        // Process collector breakdowns
-        if (search.collector && search.collector.length > 0) {
-          search.collector.forEach((collector, index) => {
-            // Add collector time
-            combinedBreakdown[`collector_${collector.name}`] = collector.time_in_nanos || 0;
-            
-            // Process collector children
-            if (collector.children && collector.children.length > 0) {
-              collector.children.forEach((child, childIndex) => {
-                combinedBreakdown[`collector_${collector.name}_${child.name}`] = child.time_in_nanos || 0;
-              });
-            }
-          });
-        }
-      }
-      
-      // Process aggregation breakdowns
-      if (firstShard.aggregations && firstShard.aggregations.length > 0) {
-        firstShard.aggregations.forEach((agg, index) => {
-          // Add total aggregation time
-          combinedBreakdown[`agg_${agg.type || 'unknown'}`] = agg.time_in_nanos || 0;
-          
-          // Add specific breakdown metrics
-          if (agg.breakdown) {
-            Object.entries(agg.breakdown).forEach(([key, value]) => {
-              combinedBreakdown[`agg_${agg.type}_${key}`] = value;
-            });
-          }
-          
-          // Process aggregation children
-          if (agg.children && agg.children.length > 0) {
-            agg.children.forEach((child, childIndex) => {
-              combinedBreakdown[`agg_${agg.type}_${child.type || 'child'}`] = child.time_in_nanos || 0;
-            });
-          }
-        });
-      }
-    }
-    
-    // Log to debug breakdown extraction for each profile
-    console.log(`Extracted breakdown for ${profile.name || 'profile'}:`, combinedBreakdown);
-    
-    return combinedBreakdown;
-  };
-
-  // Parse original queries if they exist
-  const query1 = profiles[0].originalQueryData 
-    ? (typeof profiles[0].originalQueryData === 'string' 
-        ? JSON.parse(profiles[0].originalQueryData) 
-        : profiles[0].originalQueryData) 
-    : {};
-  const query2 = profiles[1].originalQueryData 
-    ? (typeof profiles[1].originalQueryData === 'string' 
-        ? JSON.parse(profiles[1].originalQueryData) 
-        : profiles[1].originalQueryData) 
-    : {};
 
   useEffect(() => {
+    console.log('Received profiles:', profiles);
     if (profiles && profiles.length === 2) {
-      try {
-        // Calculate comparison metrics
-        const data = calculateComparisonData(profiles[0], profiles[1]);
-        setComparisonData(data);
-      } catch (error) {
-        console.error("Error calculating comparison data:", error);
-      }
+      const data = calculateComparisonData(profiles[0], profiles[1]);
+      console.log('Calculated comparison data:', data);
+      setComparisonData(data);
     }
   }, [profiles]);
   
-  const calculateComparisonData = (profile1, profile2) => {
-    if (!profile1 || !profile2) {
-      return null;
+  const getBreakdown = (profile) => {
+    if (!profile) return {};
+    
+    console.log('Extracting breakdown for profile:', profile);
+    
+    // First try to get breakdown from the standard location
+    if (profile.profile?.shards?.[0]?.searches?.[0]?.query?.[0]?.breakdown) {
+      const breakdown = profile.profile.shards[0].searches[0].query[0].breakdown;
+      console.log('Found breakdown in standard location:', breakdown);
+      return breakdown;
     }
     
-    // Get execution times - enhanced to extract from profile data if needed
-    const extractTime = (profile) => {
-      // Check for execution time in originalQueryData first
-      if (profile.originalQueryData) {
-        let originalData = profile.originalQueryData;
-        if (typeof originalData === 'string') {
-          try {
-            originalData = JSON.parse(originalData);
-          } catch (e) {
-            console.error("Failed to parse originalQueryData", e);
+    // If not found, try alternative locations
+    if (profile.breakdown) {
+      console.log('Found breakdown in root:', profile.breakdown);
+      return profile.breakdown;
+    }
+    
+    // If still not found, try to extract from query data
+    if (profile.query?.breakdown) {
+      console.log('Found breakdown in query:', profile.query.breakdown);
+      return profile.query.breakdown;
+    }
+    
+    console.log('No breakdown data found in profile');
+    return {};
+  };
+
+  // Helper function to extract fields and their order
+  const extractFieldsWithOrder = (obj) => {
+    if (!obj || typeof obj !== 'object') return [];
+    
+    const fields = [];
+    const keys = Object.keys(obj);
+    
+    keys.forEach((key, index) => {
+      // For breakdown objects, we want to track the exact position
+      if (key === 'breakdown') {
+        const breakdownKeys = Object.keys(obj[key]);
+        breakdownKeys.forEach((bKey, bIndex) => {
+          fields.push({
+            field: `${key}.${bKey}`,
+            order: bIndex,
+            parentField: key
+          });
+        });
+      } else {
+        fields.push({
+          field: key,
+          order: index,
+          parentField: null
+        });
+        
+        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key]) && key !== 'breakdown') {
+          const nestedFields = extractFieldsWithOrder(obj[key]).map(nested => ({
+            field: `${key}.${nested.field}`,
+            order: nested.order,
+            parentField: key
+          }));
+          fields.push(...nestedFields);
+        }
+      }
+    });
+    
+    return fields;
+  };
+
+  // Helper function to compare two objects structurally
+  const compareStructures = (obj1, obj2, queryPath = '') => {
+    const differences = [];
+    
+    // Get all fields with their order from both objects
+    const fields1 = extractFieldsWithOrder(obj1);
+    const fields2 = extractFieldsWithOrder(obj2);
+    
+    // Create maps of fields to their orders
+    const fieldMap1 = new Map(fields1.map(f => [f.field, { order: f.order, parentField: f.parentField }]));
+    const fieldMap2 = new Map(fields2.map(f => [f.field, { order: f.order, parentField: f.parentField }]));
+    
+    // Find fields present in obj1 but not in obj2
+    fields1.forEach(({ field }) => {
+      if (!fieldMap2.has(field)) {
+        const path = queryPath ? `${queryPath} → ${field}` : field;
+        differences.push({
+          type: 'missing',
+          field,
+          path
+        });
+      }
+    });
+    
+    // Find fields present in obj2 but not in obj1
+    fields2.forEach(({ field }) => {
+      if (!fieldMap1.has(field)) {
+        const path = queryPath ? `${queryPath} → ${field}` : field;
+        differences.push({
+          type: 'added',
+          field,
+          path
+        });
+      }
+    });
+    
+    // Find fields that exist in both but have different orders
+    // Group fields by their parent field to compare order within the same context
+    const fieldsByParent = new Map();
+    
+    fields1.forEach(f => {
+      if (!fieldsByParent.has(f.parentField)) {
+        fieldsByParent.set(f.parentField, { fields1: [], fields2: [] });
+      }
+      fieldsByParent.get(f.parentField).fields1.push(f);
+    });
+    
+    fields2.forEach(f => {
+      if (!fieldsByParent.has(f.parentField)) {
+        fieldsByParent.set(f.parentField, { fields1: [], fields2: [] });
+      }
+      fieldsByParent.get(f.parentField).fields2.push(f);
+    });
+    
+    fieldsByParent.forEach((value, parentField) => {
+      const { fields1: parentFields1, fields2: parentFields2 } = value;
+      
+      // Compare order only for fields that exist in both profiles
+      const commonFields = parentFields1.filter(f1 => 
+        parentFields2.some(f2 => f2.field === f1.field)
+      );
+      
+      commonFields.forEach(f1 => {
+        const f2 = parentFields2.find(f => f.field === f1.field);
+        if (f1.order !== f2.order) {
+          const path = queryPath ? `${queryPath} → ${f1.field}` : f1.field;
+          differences.push({
+            type: 'reorder',
+            field: f1.field,
+            path,
+            oldPosition: f1.order + 1,
+            newPosition: f2.order + 1
+          });
+        }
+      });
+    });
+    
+    return differences;
+  };
+
+  // Compare query hierarchies
+  const compareQueryHierarchies = (h1, h2) => {
+    const differences = [];
+    
+    // Compare root queries
+    if (h1.length !== h2.length) {
+      differences.push(`Different number of root queries: ${h1.length} vs ${h2.length}`);
+    }
+    
+    // Compare each query and its children
+    const maxLength = Math.max(h1.length, h2.length);
+    for (let i = 0; i < maxLength; i++) {
+      const q1 = h1[i];
+      const q2 = h2[i];
+      
+      if (!q1 || !q2) {
+        differences.push(`Query ${i + 1} is missing in ${!q1 ? 'Profile 1' : 'Profile 2'}`);
+        continue;
+      }
+      
+      const queryPath = `Query ${i + 1} (${q1.type})`;
+      
+      // Compare query fields
+      const fieldDifferences = compareStructures(q1, q2, queryPath);
+      if (fieldDifferences.length > 0) {
+        differences.push(...fieldDifferences);
+      }
+      
+      // Compare children
+      if (q1.children.length !== q2.children.length) {
+        differences.push(`${queryPath} has different number of children: ${q1.children.length} vs ${q2.children.length}`);
+      }
+      
+      // Compare each child
+      const maxChildren = Math.max(q1.children.length, q2.children.length);
+      for (let j = 0; j < maxChildren; j++) {
+        const child1 = q1.children[j];
+        const child2 = q2.children[j];
+        
+        if (!child1 || !child2) {
+          differences.push(`${queryPath} child ${j + 1} is missing in ${!child1 ? 'Profile 1' : 'Profile 2'}`);
+          continue;
+        }
+        
+        const childPath = `${queryPath} → Child ${j + 1} (${child1.type})`;
+        
+        // Compare child fields
+        const childFieldDifferences = compareStructures(child1, child2, childPath);
+        if (childFieldDifferences.length > 0) {
+          differences.push(...childFieldDifferences);
+        }
+      }
+    }
+    
+    return differences;
+  };
+
+  const calculateComparisonData = (profile1, profile2) => {
+    console.log('Calculating comparison data for profiles:', profile1, profile2);
+
+    if (!profile1?.profile || !profile2?.profile) {
+      console.warn('Invalid profile data structure:', { profile1, profile2 });
+      return { differences: [] };
+    }
+
+    const differences = [];
+
+    // Helper function to get ordered fields from a breakdown object
+    const getOrderedFields = (breakdown) => {
+      if (!breakdown) return [];
+      return Object.keys(breakdown).map((field, index) => ({
+        field,
+        originalIndex: index
+      }));
+    };
+
+    // Helper function to compare two objects and find field differences
+    const compareObjects = (obj1, obj2, context) => {
+      const fields1 = getOrderedFields(obj1);
+      const fields2 = getOrderedFields(obj2);
+
+      console.log(`Comparing fields at ${context.path}:`, { fields1, fields2 });
+
+      const fieldSet1 = new Set(fields1.map(f => f.field));
+      const fieldSet2 = new Set(fields2.map(f => f.field));
+      
+      // Create a map of field positions in obj2
+      const fieldPositionsInObj2 = new Map(
+        fields2.map(f => [f.field, f.originalIndex])
+      );
+
+      // Check for reordered fields
+      fields1.forEach(field1 => {
+        if (fieldSet2.has(field1.field)) {
+          const pos1 = field1.originalIndex;
+          const pos2 = fieldPositionsInObj2.get(field1.field);
+          
+          if (pos1 !== pos2) {
+            differences.push({
+              type: 'reorder',
+              field: field1.field,
+              path: context.path,
+              queryType: context.queryType,
+              description: context.description,
+              oldPosition: pos1 + 1,
+              newPosition: pos2 + 1
+            });
           }
         }
-        
-        if (originalData && originalData.took) {
-          return originalData.took; // Return milliseconds
+      });
+
+      // Check for missing fields
+      fields1.forEach(field => {
+        if (!fieldSet2.has(field.field)) {
+          differences.push({
+            type: 'missing',
+            field: field.field,
+            path: context.path,
+            queryType: context.queryType,
+            description: context.description
+          });
         }
-      }
-    
-      // First check standard fields
-      if (profile.time_in_nanos) return profile.time_in_nanos / 1000000;
-      if (profile.timeInMillis) return profile.timeInMillis;
-      if (profile.executionTime) return profile.executionTime;
-      if (profile.took) return profile.took;
-      
-      // If not found, try to extract from the profile data
-      if (profile.profileData && profile.profileData.shards && profile.profileData.shards.length > 0) {
-        const searchData = profile.profileData.shards[0].searches?.[0];
-        
-        if (!searchData) return 0;
-        
-        // If took_in_millis is available directly, use it
-        if (searchData.took_in_millis) {
-          return searchData.took_in_millis; // Return milliseconds
+      });
+
+      // Check for added fields
+      fields2.forEach(field => {
+        if (!fieldSet1.has(field.field)) {
+          differences.push({
+            type: 'added',
+            field: field.field,
+            path: context.path,
+            queryType: context.queryType,
+            description: context.description
+          });
         }
-        
-        // Sum up all query times
-        const queryTime = (searchData.query || []).reduce(
-          (sum, q) => sum + (q.time_in_nanos || 0), 
-          0
-        );
-        
-        // Add rewrite time
-        const rewriteTime = searchData.rewrite_time || 0;
-        
-        // Add collector time
-        const collectorTime = (searchData.collector || []).reduce(
-          (sum, c) => sum + (c.time_in_nanos || 0),
-          0
-        );
-        
-        // Add aggregation time
-        const aggregationTime = (profile.profileData.shards[0].aggregations || []).reduce(
-          (sum, agg) => sum + (agg.time_in_nanos || 0),
-          0
-        );
-        
-        // Convert to milliseconds
-        const totalTimeInMillis = (queryTime + rewriteTime + collectorTime + aggregationTime) / 1000000;
-        
-        return totalTimeInMillis > 0 ? totalTimeInMillis : 0;
-      }
-      
-      return 0;
+      });
     };
-    
-    const time1 = extractTime(profile1);
-    const time2 = extractTime(profile2);
-    
-    // Calculate time difference and percentage
-    const timeDiff = time2 - time1;
-    const timePercentage = time1 > 0 ? ((time2 - time1) / time1) * 100 : 0;
-    
-    // Determine performance rating
-    let performanceRating;
-    if (Math.abs(timePercentage) < 1 || Math.abs(timeDiff) < 0.1) {
-      performanceRating = 'similar';
-    } else if (timePercentage < 0) {
-      performanceRating = 'better';
-    } else {
-      performanceRating = 'worse';
+
+    // Compare main query breakdown
+    const query1 = profile1.profile?.shards?.[0]?.searches?.[0]?.query?.[0];
+    const query2 = profile2.profile?.shards?.[0]?.searches?.[0]?.query?.[0];
+    if (query1?.breakdown && query2?.breakdown) {
+      compareObjects(query1.breakdown, query2.breakdown, {
+        path: 'Query Breakdown',
+        queryType: query1.type,
+        description: query1.description
+      });
     }
-    
-    // Get query type differences - enhanced to extract from profile data if needed
-    const getQueryType = (profile) => {
-      if (profile.query_type || profile.queryType) {
-        return profile.query_type || profile.queryType;
-      }
+
+    // Compare child queries recursively
+    const compareChildQueries = (children1, children2, parentPath) => {
+      if (!children1 || !children2) return;
       
-      // Try to get from the profile data
-      if (profile.profileData?.shards?.[0]?.searches?.[0]?.query?.[0]?.type) {
-        return profile.profileData.shards[0].searches[0].query[0].type;
-      }
-      
-      return 'Unknown';
+      children1.forEach((child1, index) => {
+        const child2 = children2[index];
+        if (child1?.breakdown && child2?.breakdown) {
+          compareObjects(child1.breakdown, child2.breakdown, {
+            path: `${parentPath} → Child Query`,
+            queryType: child1.type,
+            description: child1.description
+          });
+        }
+        // Recursively compare nested children
+        if (child1.children && child2.children) {
+          compareChildQueries(child1.children, child2.children, `${parentPath} → ${child1.type}`);
+        }
+      });
     };
-    
-    const queryType1 = getQueryType(profile1);
-    const queryType2 = getQueryType(profile2);
-    const queryTypeDiff = queryType1 !== queryType2;
-    
-    // Get breakdown differences
-    const breakdown1 = getBreakdown(profile1);
-    const breakdown2 = getBreakdown(profile2);
-    
-    // Log both breakdowns to help identify issues
-    console.log('Breakdown 1:', breakdown1);
-    console.log('Breakdown 2:', breakdown2);
-    
-    // Get all possible keys from both breakdowns
-    const allKeys = [...new Set([...Object.keys(breakdown1), ...Object.keys(breakdown2)])];
-    console.log('All breakdown keys:', allKeys);
-    
-    const breakdownDiff = allKeys.reduce((diff, key) => {
-      const val1 = breakdown1[key] || 0;
-      const val2 = breakdown2[key] || 0;
-      diff[key] = {
-        value1: val1,
-        value2: val2,
-        diff: val2 - val1,
-        percentage: val1 > 0 ? ((val2 - val1) / val1) * 100 : 0
-      };
-      return diff;
-    }, {});
-    
-    // Log the final breakdown diff result
-    console.log('Calculated breakdown diff:', breakdownDiff);
-    
-    return {
-      profile1Name: profile1.name || 'Profile 1',
-      profile2Name: profile2.name || 'Profile 2',
-      times: {
-        time1,
-        time2,
-        diff: timeDiff,
-        percentage: timePercentage,
-        performanceRating
-      },
-      queryTypes: {
-        type1: queryType1,
-        type2: queryType2,
-        isDifferent: queryTypeDiff
-      },
-      breakdown: breakdownDiff
-    };
+
+    if (query1?.children && query2?.children) {
+      compareChildQueries(query1.children, query2.children, query1.type);
+    }
+
+    // Compare collector fields
+    const collector1 = profile1.profile?.shards?.[0]?.searches?.[0]?.collector?.[0];
+    const collector2 = profile2.profile?.shards?.[0]?.searches?.[0]?.collector?.[0];
+    if (collector1 && collector2) {
+      compareObjects(collector1, collector2, {
+        path: 'Collector',
+        queryType: collector1.name,
+        description: collector1.reason
+      });
+    }
+
+    console.log('Calculated differences:', differences);
+    return { differences };
   };
   
   const formatTime = (time) => {
@@ -471,89 +493,20 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
   const renderSummaryView = () => {
     if (!comparisonData) return <div>Loading comparison data...</div>;
     
-    const { times, queryTypes } = comparisonData;
-    
-    // Get the most significant performance factors
-    const getSignificantFactors = () => {
-      return Object.entries(comparisonData.breakdown)
-        // Filter out count metrics and metrics with identical values or extremely small values
-        .filter(([key, data]) => {
-          // Skip metrics that end with _count
-          if (key.endsWith('_count')) return false;
-          
-          // Skip metrics that have identical values
-          if (Math.abs(data.diff) < 0.001) return false;
-          
-          // Skip metrics where both values are extremely small (< 1000 ns)
-          if (data.value1 < 1000 && data.value2 < 1000) return false;
-          
-          return true;
-        })
-        // Sort primarily by absolute difference
-        .sort((a, b) => {
-          // Compare by absolute difference (higher difference first)
-          return Math.abs(b[1].diff) - Math.abs(a[1].diff);
-        })
-        // Take top 5 factors
-        .slice(0, 5);
-    };
+    const { differences } = comparisonData;
     
     return (
       <div className="comparison-summary">
-        <div className="comparison-overview">
-          <h3>Execution Time</h3>
-          <div className={`performance-${times.performanceRating}`}>
-            {Math.abs(times.diff) < 0.001 ? (
-              <div className="metric-large">
-                <span className="metric-value">Identical</span>
-                <span className="metric-label">execution times</span>
-              </div>
-            ) : (
-              <div className="metric-large">
-                <span className="metric-value">{formatTime(Math.abs(times.diff))}</span>
-                <span className="metric-label">
-                  {times.diff >= 0 ? 'slower' : 'faster'}
-                </span>
-              </div>
-            )}
-            <div className="metric-percentage">
-              {Math.abs(times.percentage) < 0.01 ? 'No difference' : formatPercentage(times.percentage)}
-            </div>
-          </div>
-        </div>
-        
         <div className="comparison-details">
           <div className="comparison-item">
-            <h4>Query Types</h4>
-            <div className={queryTypes.isDifferent ? 'highlight-diff' : ''}>
-              <div>{queryTypes.type1} → {queryTypes.type2}</div>
-              {queryTypes.isDifferent && (
-                <div className="diff-note">Different query types may affect performance</div>
-              )}
-            </div>
-          </div>
-          
-          <div className="comparison-item">
-            <h4>Top Performance Factors</h4>
-            {getSignificantFactors().length > 0 ? (
-              <ul className="factors-list">
-                {getSignificantFactors().map(([key, data]) => {
-                  const formattedKey = formatBreakdownKey(key);
-                  return (
-                    <li key={key} className={`performance-${data.diff < 0 ? 'better' : 'worse'}`}>
-                      <span className="factor-name">
-                        {formattedKey.operation}
-                      </span>
-                      <span className="factor-change">
-                        {formatTime(Math.abs(data.diff))} ({formatPercentage(data.percentage)})
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <div className="no-factors">No significant performance factors found</div>
-            )}
+            <h4>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19Z" fill="#1a73e8"/>
+                <path d="M7 7H17V9H7V7ZM7 11H17V13H7V11ZM7 15H14V17H7V15Z" fill="#1a73e8"/>
+              </svg>
+              Structure Differences
+            </h4>
+            {renderStructureDifferences(differences)}
           </div>
         </div>
       </div>
@@ -562,303 +515,171 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
   
   const renderDetailedView = () => {
     if (!comparisonData) return <div>Loading comparison data...</div>;
-    
-    // Log breakdown data to identify any issues
-    console.log('Breakdown data in detailed view:', comparisonData.breakdown);
-    
-    // Organize metrics hierarchically based on the OpenSearch profile structure
-    const organizeMetrics = () => {
-      const hierarchicalMetrics = {
-        general: [
-          { key: 'executionTime', label: 'Execution Time', data: comparisonData.times },
-          { key: 'queryType', label: 'Query Type', data: comparisonData.queryTypes }
-        ],
-        queries: {
-          metrics: [],
-          children: {}
-        },
-        collectors: {
-          metrics: [],
-          children: {}
-        },
-        aggregations: {
-          metrics: [],
-          children: {}
-        }
-      };
 
-      // Create a map to store count operations with their corresponding time operations
-      const countMetricsMap = {};
-      Object.entries(comparisonData.breakdown).forEach(([key, data]) => {
-        if (key.endsWith('_count')) {
-          const baseKey = key.replace('_count', '');
-          countMetricsMap[baseKey] = {
-            countKey: key,
-            countData: data
-          };
-        }
-      });
-
-      // Helper to extract query type from key - used for hierarchical organization, not display
-      const extractQueryInfo = (key) => {
-        const parts = key.split('_');
-        let queryType = '';
-        let operation = '';
-        let isNested = false;
-        
-        // Extract query type
-        if (key.includes('Query')) {
-          const queryMatch = key.match(/(\w+Query)/g);
-          queryType = queryMatch ? queryMatch.join(' ') : '';
-        }
-        
-        // Check if this is a nested query operation
-        if (parts.length > 2 && parts.some(p => p.includes('Query'))) {
-          isNested = true;
-        }
-        
-        // Extract operation name - just the last part
-        operation = parts.length > 0 ? parts[parts.length - 1] : key;
-        
-        return { queryType, operation, isNested };
-      };
-
-      // Process and group breakdown items
-      Object.entries(comparisonData.breakdown).forEach(([key, data]) => {
-        // Skip count metrics - they'll be handled with their corresponding time metrics
-        if (key.endsWith('_count')) return;
-        
-        const formattedKey = formatBreakdownKey(key);
-        const countInfo = countMetricsMap[key];
-        
-        const metricItem = {
-          key,
-          label: formattedKey.operation,
-          queryType: formattedKey.queryTypes,
-          data,
-          countData: countInfo?.countData
-        };
-
-        // Group based on key patterns
-        if (key.startsWith('collector') || key.includes('collect_')) {
-          // Handle collector metrics
-          if (key.includes('_')) {
-            // This is a nested collector operation
-            const collectorName = key.split('_')[1]; // Get collector name
-            if (!hierarchicalMetrics.collectors.children[collectorName]) {
-              hierarchicalMetrics.collectors.children[collectorName] = [];
-            }
-            hierarchicalMetrics.collectors.children[collectorName].push(metricItem);
-          } else {
-            hierarchicalMetrics.collectors.metrics.push(metricItem);
-          }
-        } else if (key.includes('agg')) {
-          // Handle aggregation metrics
-          if (key.split('_').length > 2) {
-            // This is a nested aggregation operation
-            const aggType = key.split('_')[1]; // Get aggregation type
-            if (!hierarchicalMetrics.aggregations.children[aggType]) {
-              hierarchicalMetrics.aggregations.children[aggType] = [];
-            }
-            hierarchicalMetrics.aggregations.children[aggType].push(metricItem);
-          } else {
-            hierarchicalMetrics.aggregations.metrics.push(metricItem);
-          }
-        } else {
-          // Handle query operations
-          const { queryType, isNested } = extractQueryInfo(key);
-          
-          if (queryType && isNested) {
-            // This is a nested query operation
-            if (!hierarchicalMetrics.queries.children[queryType]) {
-              hierarchicalMetrics.queries.children[queryType] = [];
-            }
-            hierarchicalMetrics.queries.children[queryType].push(metricItem);
-          } else {
-            // These are general query operations
-            hierarchicalMetrics.queries.metrics.push(metricItem);
-          }
-        }
-      });
-
-      // Sort metrics within each group by absolute difference
-      const sortMetricsByDiff = (metrics) => {
-        return metrics.sort((a, b) => {
-          if (!a.data.diff) return -1;
-          if (!b.data.diff) return 1;
-          return Math.abs(b.data.diff) - Math.abs(a.data.diff);
-        });
-      };
-
-      hierarchicalMetrics.queries.metrics = sortMetricsByDiff(hierarchicalMetrics.queries.metrics);
-      hierarchicalMetrics.collectors.metrics = sortMetricsByDiff(hierarchicalMetrics.collectors.metrics);
-      hierarchicalMetrics.aggregations.metrics = sortMetricsByDiff(hierarchicalMetrics.aggregations.metrics);
+    // Helper function to recursively render a query and its children as table rows
+    const renderQueryRows = (query1, query2, level = 0) => {
+      if (!query1 || !query2) return null;
+      const rows = [];
       
-      // Sort nested children too
-      Object.keys(hierarchicalMetrics.queries.children).forEach(queryType => {
-        hierarchicalMetrics.queries.children[queryType] = sortMetricsByDiff(hierarchicalMetrics.queries.children[queryType]);
-      });
-      
-      Object.keys(hierarchicalMetrics.collectors.children).forEach(collectorName => {
-        hierarchicalMetrics.collectors.children[collectorName] = sortMetricsByDiff(hierarchicalMetrics.collectors.children[collectorName]);
-      });
-      
-      Object.keys(hierarchicalMetrics.aggregations.children).forEach(aggType => {
-        hierarchicalMetrics.aggregations.children[aggType] = sortMetricsByDiff(hierarchicalMetrics.aggregations.children[aggType]);
-      });
-
-      return hierarchicalMetrics;
-    };
-
-    const hierarchicalMetrics = organizeMetrics();
-
-    // Render a metric row
-    const renderMetricRow = (item) => {
-      if (item.key === 'executionTime') {
-        // Handle execution time
-        return (
-          <React.Fragment key={item.key}>
-            <div className="metric-name">{item.label}</div>
-            <div className="metric-value">{formatTime(item.data.time1)}</div>
-            <div className="metric-value">{formatTime(item.data.time2)}</div>
-            <div className={`metric-diff performance-${item.data.diff < 0 ? 'better' : item.data.diff > 0 ? 'worse' : 'similar'}`}>
-              {Math.abs(item.data.diff) < 0.001 ? 
-                'Identical' : 
-                `${formatTime(Math.abs(item.data.diff))} (${formatPercentage(item.data.percentage)})`
-              }
-            </div>
-          </React.Fragment>
-        );
-      } else if (item.key === 'queryType') {
-        // Handle query type
-        return (
-          <React.Fragment key={item.key}>
-            <div className="metric-name">{item.label}</div>
-            <div className="metric-value">{item.data.type1}</div>
-            <div className="metric-value">{item.data.type2}</div>
-            <div className={`metric-diff ${item.data.isDifferent ? 'highlight-diff' : ''}`}>
-              {item.data.isDifferent ? 'Different' : 'Same'}
-            </div>
-          </React.Fragment>
-        );
-      } else {
-        // Handle regular metrics - simplified without query types
-        return (
-          <React.Fragment key={item.key}>
-            <div className="metric-name" title={item.key}>
-              {item.label}
-              {item.countData && (
-                <span className="metric-count-label" title="Has count data">
-                  <span style={{ fontSize: '0.85em', marginLeft: '6px', color: '#555' }}>
-                    (calls: {item.countData.value1} → {item.countData.value2})
-                  </span>
-                </span>
-              )}
-            </div>
-            <div className="metric-value">{formatTime(item.data.value1)}</div>
-            <div className="metric-value">{formatTime(item.data.value2)}</div>
-            <div className={`metric-diff performance-${item.data.diff < 0 ? 'better' : item.data.diff > 0 ? 'worse' : 'similar'}`}>
-              {Math.abs(item.data.diff) < 0.001 ? 
-                'Identical' : 
-                `${formatTime(Math.abs(item.data.diff))} (${formatPercentage(item.data.percentage)})`
-              }
-            </div>
-          </React.Fragment>
-        );
-      }
-    };
-
-    // Function to render section headers
-    const renderSectionHeader = (title, level = 1) => {
-      const bgColor = level === 1 ? '#e8f4fd' : '#f1faff';
-      const fontWeight = level === 1 ? '600' : '500';
-      const fontSize = level === 1 ? '1em' : '0.95em';
-      const paddingLeft = level === 1 ? '16px' : '24px';
-      
-      return (
-        <div 
-          className={`metric-section-header level-${level}`} 
-          style={{ 
-            gridColumn: 'span 4', 
-            backgroundColor: bgColor, 
-            padding: `10px ${paddingLeft}`, 
-            fontWeight, 
-            fontSize 
-          }}
-        >
-          {title}
-        </div>
+      // Parent query row
+      rows.push(
+        <tr key={query1.type + query1.description + level} className="query-parent-row">
+          <td colSpan={4} style={{ paddingLeft: `${level * 24}px` }}>
+            {query1.type}
+            {query1.description && (
+              <span style={{ color: '#5f6368', fontWeight: 'normal' }}> ({query1.description})</span>
+            )}
+          </td>
+        </tr>
       );
+
+      // Get breakdown data from both profiles
+      const breakdown1 = query1.breakdown || {};
+      const breakdown2 = query2.breakdown || {};
+
+      // Get all unique keys from both breakdowns
+      const allKeys = new Set([...Object.keys(breakdown1), ...Object.keys(breakdown2)]);
+
+      // Sort keys to maintain consistent order
+      const sortedKeys = Array.from(allKeys).sort();
+
+      // Metrics/breakdown rows
+      sortedKeys.forEach((key) => {
+        const value1 = breakdown1[key];
+        const value2 = breakdown2[key];
+        let diffClass = '';
+        let diffText = '';
+
+        if (value1 === undefined) {
+          diffClass = 'field-missing-in-one';
+          diffText = 'Missing in Profile 1';
+        } else if (value2 === undefined) {
+          diffClass = 'field-missing-in-one';
+          diffText = 'Missing in Profile 2';
+        } else {
+          const diff = value2 - value1;
+          diffClass = diff === 0 ? 'similar' : (value2 > value1 ? 'regression' : 'improvement');
+          diffText = diff === 0 ? 'Identical' : `${formatTime(Math.abs(diff))} (${formatPercentage((diff / value1) * 100)})`;
+        }
+        
+        rows.push(
+          <tr key={key + level} className="query-metric-row">
+            <td style={{ paddingLeft: `${(level + 1) * 24 + 16}px` }}>
+              {formatBreakdownKey(key).operation}
+            </td>
+            <td className="metric-value">{value1 !== undefined ? formatTime(value1) : '—'}</td>
+            <td className="metric-value">{value2 !== undefined ? formatTime(value2) : '—'}</td>
+            <td className={`metric-diff ${diffClass}`}>{diffText}</td>
+          </tr>
+        );
+      });
+
+      // Recursively render children
+      if (query1.children && query2.children) {
+        query1.children.forEach((child1, idx) => {
+          const child2 = query2.children[idx];
+          if (child1 && child2) {
+            rows.push(...renderQueryRows(child1, child2, level + 1));
+          }
+        });
+      }
+
+      return rows;
     };
+
+    // Helper function to render collector information as table rows
+    const renderCollectorRows = (collector1, collector2, level = 0) => {
+      if (!collector1 || !collector2) return null;
+      const rows = [];
+      
+      // Collector header row
+      rows.push(
+        <tr key={collector1.name + level} className="query-parent-row">
+          <td colSpan={4} style={{ paddingLeft: `${level * 24}px` }}>
+            {collector1.name}
+            {collector1.reason && (
+              <span style={{ color: '#5f6368', fontWeight: 'normal' }}> ({collector1.reason})</span>
+            )}
+          </td>
+        </tr>
+      );
+
+      // Get all unique keys from both collectors
+      const allKeys = new Set([...Object.keys(collector1), ...Object.keys(collector2)]);
+      const excludeKeys = new Set(['name', 'reason']); // Keys to exclude from comparison
+
+      // Sort keys to maintain consistent order
+      const sortedKeys = Array.from(allKeys)
+        .filter(key => !excludeKeys.has(key))
+        .sort();
+
+      // Collector metrics rows
+      sortedKeys.forEach((key) => {
+        const value1 = collector1[key];
+        const value2 = collector2[key];
+        let diffClass = '';
+        let diffText = '';
+
+        if (value1 === undefined) {
+          diffClass = 'field-missing-in-one';
+          diffText = 'Missing in Profile 1';
+        } else if (value2 === undefined) {
+          diffClass = 'field-missing-in-one';
+          diffText = 'Missing in Profile 2';
+        } else {
+          const diff = value2 - value1;
+          diffClass = diff === 0 ? 'similar' : (value2 > value1 ? 'regression' : 'improvement');
+          diffText = diff === 0 ? 'Identical' : `${formatTime(Math.abs(diff))} (${formatPercentage((diff / value1) * 100)})`;
+        }
+
+        rows.push(
+          <tr key={key + level} className="query-metric-row">
+            <td style={{ paddingLeft: `${(level + 1) * 24 + 16}px` }}>{key}</td>
+            <td className="metric-value">{value1 !== undefined ? formatTime(value1) : '—'}</td>
+            <td className="metric-value">{value2 !== undefined ? formatTime(value2) : '—'}</td>
+            <td className={`metric-diff ${diffClass}`}>{diffText}</td>
+          </tr>
+        );
+      });
+
+      return rows;
+    };
+
+    const profile1 = profiles[0]?.profile;
+    const profile2 = profiles[1]?.profile;
 
     return (
       <div className="comparison-detailed">
         <div className="comparison-grid-container">
-          <div className="comparison-grid">
-            <div className="comparison-header">Metric</div>
-            <div className="comparison-header">{comparisonData.profile1Name}</div>
-            <div className="comparison-header">{comparisonData.profile2Name}</div>
-            <div className="comparison-header">Difference</div>
-            
-            {/* General Section */}
-            {renderSectionHeader('General')}
-            {hierarchicalMetrics.general.map(renderMetricRow)}
-            
-            {/* Query Operations Section */}
-            {(hierarchicalMetrics.queries.metrics.length > 0 || Object.keys(hierarchicalMetrics.queries.children).length > 0) && (
-              <>
-                {renderSectionHeader('Queries')}
-                {hierarchicalMetrics.queries.metrics.map(renderMetricRow)}
-                
-                {/* Render nested query operations by query type */}
-                {Object.entries(hierarchicalMetrics.queries.children).map(([queryType, metrics]) => (
-                  <React.Fragment key={queryType}>
-                    {renderSectionHeader(`${queryType}`, 2)}
-                    {metrics.map(renderMetricRow)}
-                  </React.Fragment>
-                ))}
-              </>
-            )}
-            
-            {/* Collector Operations Section */}
-            {(hierarchicalMetrics.collectors.metrics.length > 0 || Object.keys(hierarchicalMetrics.collectors.children).length > 0) && (
-              <>
-                {renderSectionHeader('Collectors')}
-                {hierarchicalMetrics.collectors.metrics.map(renderMetricRow)}
-                
-                {/* Render nested collector operations by collector name */}
-                {Object.entries(hierarchicalMetrics.collectors.children).map(([collectorName, metrics]) => (
-                  <React.Fragment key={collectorName}>
-                    {renderSectionHeader(`${collectorName}`, 2)}
-                    {metrics.map(renderMetricRow)}
-                  </React.Fragment>
-                ))}
-              </>
-            )}
-            
-            {/* Aggregation Operations Section */}
-            {(hierarchicalMetrics.aggregations.metrics.length > 0 || Object.keys(hierarchicalMetrics.aggregations.children).length > 0) && (
-              <>
-                {renderSectionHeader('Aggregations')}
-                {hierarchicalMetrics.aggregations.metrics.map(renderMetricRow)}
-                
-                {/* Render nested aggregation operations by aggregation type */}
-                {Object.entries(hierarchicalMetrics.aggregations.children).map(([aggType, metrics]) => (
-                  <React.Fragment key={aggType}>
-                    {renderSectionHeader(`${aggType}`, 2)}
-                    {metrics.map(renderMetricRow)}
-                  </React.Fragment>
-                ))}
-              </>
-            )}
+          <table className="comparison-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40%' }}>Metric</th>
+                <th style={{ width: '20%' }}>{profiles[0]?.name || 'Profile 1'}</th>
+                <th style={{ width: '20%' }}>{profiles[1]?.name || 'Profile 2'}</th>
+                <th style={{ width: '20%' }}>Difference</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Query Section */}
+              <tr>
+                <td colSpan={4} className="metric-section-header">Query</td>
+              </tr>
+              {profile1?.shards?.[0]?.searches?.[0]?.query?.map((query1, index) => {
+                const query2 = profile2?.shards?.[0]?.searches?.[0]?.query?.[index];
+                return renderQueryRows(query1, query2, 0);
+              })}
 
-            {/* If no breakdown data at all */}
-            {Object.entries(comparisonData.breakdown).length === 0 && (
-              <div className="metric-name" style={{ gridColumn: 'span 4', textAlign: 'center' }}>
-                No breakdown data available
-              </div>
-            )}
-          </div>
+              {/* Collector Section */}
+              <tr>
+                <td colSpan={4} className="metric-section-header">Collector</td>
+              </tr>
+              {profile1?.shards?.[0]?.searches?.[0]?.collector?.map((collector1, index) => {
+                const collector2 = profile2?.shards?.[0]?.searches?.[0]?.collector?.[index];
+                return renderCollectorRows(collector1, collector2, 0);
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     );
@@ -937,67 +758,12 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     
     // Extract execution time from profile data
     const extractExecutionTime = (profile) => {
-      // Check for execution time in originalQueryData first
-      if (profile.originalQueryData) {
-        let originalData = profile.originalQueryData;
-        if (typeof originalData === 'string') {
-          try {
-            originalData = JSON.parse(originalData);
-          } catch (e) {
-            console.error("Failed to parse originalQueryData", e);
-          }
-        }
-        
-        if (originalData && originalData.took) {
-          return originalData.took / 1000; // Convert to seconds
-        }
+      if (!profile?.profile?.shards?.[0]?.searches?.[0]?.query?.[0]) {
+        return 0;
       }
       
-      // First check standard fields
-      if (profile.time_in_nanos) return profile.time_in_nanos / 1000000 / 1000; // Convert to seconds
-      if (profile.timeInMillis) return profile.timeInMillis / 1000; // Convert to seconds
-      if (profile.executionTime) return profile.executionTime / 1000; // Convert to seconds
-      if (profile.took) return profile.took / 1000; // Convert to seconds
-      
-      // If not found, try to extract from the profile data
-      if (profile.profileData && profile.profileData.shards && profile.profileData.shards.length > 0) {
-        const searchData = profile.profileData.shards[0].searches?.[0];
-        
-        if (!searchData) return 0;
-        
-        // If took_in_millis is available directly, use it
-        if (searchData.took_in_millis) {
-          return searchData.took_in_millis / 1000; // Convert to seconds
-        }
-        
-        // Sum up all query times
-        const queryTime = (searchData.query || []).reduce(
-          (sum, q) => sum + (q.time_in_nanos || 0), 
-          0
-        );
-        
-        // Add rewrite time
-        const rewriteTime = searchData.rewrite_time || 0;
-        
-        // Add collector time
-        const collectorTime = (searchData.collector || []).reduce(
-          (sum, c) => sum + (c.time_in_nanos || 0),
-          0
-        );
-        
-        // Add aggregation time
-        const aggregationTime = (profile.profileData.shards[0].aggregations || []).reduce(
-          (sum, agg) => sum + (agg.time_in_nanos || 0),
-          0
-        );
-        
-        // Convert to seconds (from nanoseconds)
-        const totalTimeInSeconds = (queryTime + rewriteTime + collectorTime + aggregationTime) / 1000000000;
-        
-        return totalTimeInSeconds > 0 ? totalTimeInSeconds : 0;
-      }
-      
-      return 0;
+      const query = profile.profile.shards[0].searches[0].query[0];
+      return query.time_in_nanos / 1000000; // Convert to milliseconds
     };
     
     const time1 = extractExecutionTime(profiles[0]);
@@ -1007,183 +773,62 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     
     // Extract shard info from profile data
     const getShardInfo = (profile) => {
-      // First check standard fields
-      if (profile._shards?.successful !== undefined) {
-        return {
-          total: profile._shards.total || 0,
-          successful: profile._shards.successful || 0,
-          failed: profile._shards.failed || 0
-        };
+      if (!profile?.profile?.shards?.[0]) {
+        return { total: 0, successful: 0, failed: 0 };
       }
       
-      // Then check shardInfo property
-      if (profile.shardInfo?.successful !== undefined) {
-        return profile.shardInfo;
-      }
-      
-      // Finally check profile data
-      if (profile.profileData?.shards) {
-        return {
-          total: profile.profileData.shards.length,
-          successful: profile.profileData.shards.length,
-          failed: 0
-        };
-      }
-      
-      return { total: 0, successful: 0, failed: 0 };
+      const shard = profile.profile.shards[0];
+      return {
+        total: 1,
+        successful: 1,
+        failed: 0
+      };
     };
     
     const shardInfo1 = getShardInfo(profiles[0]);
     const shardInfo2 = getShardInfo(profiles[1]);
     
     return (
-      <div className="comparison-section">
-        <div className="section-header" onClick={() => toggleSection('executionTime')}>
-          {expandedSections.executionTime ? <FaChevronDown className="toggle-icon expanded" /> : <FaChevronRight className="toggle-icon" />}
-          <h3>Execution Time Comparison</h3>
-        </div>
-        
-        {expandedSections.executionTime && (
-          <div className="section-content">
-            <div className="comparison-grid-container">
-              <div className="comparison-grid">
-                <div className="metric-label">Metric</div>
-                <div className="profile-label">{profiles[0]?.name || "Profile 1"}</div>
-                <div className="profile-label">{profiles[1]?.name || "Profile 2"}</div>
-                <div className="diff-label">Difference</div>
-                
-                <div className="metric-name">Execution Time</div>
-                <div className="metric-value">{formatDuration(time1)}</div>
-                <div className="metric-value">{formatDuration(time2)}</div>
-                <div className={`metric-diff ${isImprovement ? 'improvement' : Math.abs(diff) < 0.0001 ? 'similar' : 'regression'}`}>
-                  {diff !== 'N/A' ? 
-                    (Math.abs(diff) < 0.0001 ? 
-                      'Identical execution times' : 
-                      `${isImprovement ? '-' : '+'}${formatDuration(Math.abs(diff))} (${percentage}%)`) : 
-                    'N/A'}
-                </div>
-                
-                <div className="metric-name">Total Hits</div>
-                <div className="metric-value">{formatNumber(profiles[0].hits?.total?.value)}</div>
-                <div className="metric-value">{formatNumber(profiles[1].hits?.total?.value)}</div>
-                <div className="metric-diff">
-                  {profiles[0].hits?.total?.value !== undefined && profiles[1].hits?.total?.value !== undefined ? 
-                    (profiles[0].hits.total.value === profiles[1].hits.total.value ? 
-                      'Identical' : 
-                      formatNumber(profiles[1].hits.total.value - profiles[0].hits.total.value)) : 
-                    'N/A'}
-                </div>
-                
-                <div className="metric-name">Successful Shards</div>
-                <div className="metric-value">{formatNumber(shardInfo1.successful)}</div>
-                <div className="metric-value">{formatNumber(shardInfo2.successful)}</div>
-                <div className="metric-diff">
-                  {shardInfo1.successful !== undefined && shardInfo2.successful !== undefined ? 
-                    (shardInfo1.successful === shardInfo2.successful ? 
-                      'Identical' : 
-                      formatNumber(shardInfo2.successful - shardInfo1.successful)) : 
-                    'N/A'}
-                </div>
-              </div>
-            </div>
+      <div className="execution-time-content">
+        <div className="comparison-grid">
+          <div className="metric-label">Metric</div>
+          <div className="profile-label">{profiles[0]?.name || "Profile 1"}</div>
+          <div className="profile-label">{profiles[1]?.name || "Profile 2"}</div>
+          <div className="diff-label">Difference</div>
+          
+          <div className="metric-name">Execution Time</div>
+          <div className="metric-value">{formatDuration(time1)}</div>
+          <div className="metric-value">{formatDuration(time2)}</div>
+          <div className={`metric-diff ${isImprovement ? 'improvement' : Math.abs(diff) < 0.0001 ? 'similar' : 'regression'}`}>
+            {diff !== 'N/A' ? 
+              (Math.abs(diff) < 0.0001 ? 
+                'Identical execution times' : 
+                `${isImprovement ? '-' : '+'}${formatDuration(Math.abs(diff))} (${percentage}%)`) : 
+              'N/A'}
           </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderQueryHierarchyComparison = () => {
-    if (!profiles || profiles.length < 2) {
-      return null;
-    }
-    
-    // Helper function to extract query hierarchy from profile data
-    const extractQueryHierarchy = (profile) => {
-      if (!profile || !profile.profileData?.shards?.[0]?.searches?.[0]?.query) {
-        return [];
-      }
-      
-      // Get the root queries
-      return profile.profileData.shards[0].searches[0].query.map(q => ({
-        type: q.type || 'Unknown',
-        description: q.description || '',
-        time_ns: q.time_in_nanos || 0,
-        breakdown: q.breakdown || {},
-        children: q.children || []
-      }));
-    };
-    
-    const queries1 = extractQueryHierarchy(profiles[0]);
-    const queries2 = extractQueryHierarchy(profiles[1]);
-    
-    // Helper function to render a query node and its children
-    const renderQueryNode = (query, depth = 0) => {
-      if (!query) return null;
-      
-      return (
-        <div className="query-hierarchy-node" style={{ marginLeft: `${depth * 20}px` }}>
-          <div className="query-node-header">
-            <span className="query-node-type">{query.type}</span>
-            <span className="query-node-time">{formatTime(query.time_ns / 1000000)}</span>
+          
+          <div className="metric-name">Total Hits</div>
+          <div className="metric-value">{formatNumber(profiles[0]?.hits?.total?.value || 0)}</div>
+          <div className="metric-value">{formatNumber(profiles[1]?.hits?.total?.value || 0)}</div>
+          <div className="metric-diff">
+            {profiles[0]?.hits?.total?.value !== undefined && profiles[1]?.hits?.total?.value !== undefined ? 
+              (profiles[0].hits.total.value === profiles[1].hits.total.value ? 
+                'Identical' : 
+                formatNumber(profiles[1].hits.total.value - profiles[0].hits.total.value)) : 
+              'N/A'}
           </div>
-          {query.description && (
-            <div className="query-node-description">{query.description}</div>
-          )}
-          {query.children && query.children.length > 0 && (
-            <div className="query-node-children">
-              {query.children.map((child, index) => (
-                <div key={index} className="query-child-connector">
-                  {renderQueryNode(child, depth + 1)}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    };
-    
-    return (
-      <div className="comparison-section">
-        <div className="section-header" onClick={() => toggleSection('queryStructure')}>
-          {expandedSections.queryStructure ? <FaChevronDown className="toggle-icon expanded" /> : <FaChevronRight className="toggle-icon" />}
-          <h3>Query Hierarchy Comparison</h3>
-        </div>
-        
-        {expandedSections.queryStructure && (
-          <div className="section-content">
-            <div className="query-hierarchy-container">
-              <div className="query-column">
-                <h4>{profiles[0]?.name || "Profile 1"} Query Hierarchy</h4>
-                <div className="query-hierarchy">
-                  {queries1.length > 0 ? (
-                    queries1.map((query, index) => (
-                      <div key={index} className="query-root-node">
-                        {renderQueryNode(query)}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="no-hierarchy-data">No query hierarchy data available</div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="query-column">
-                <h4>{profiles[1]?.name || "Profile 2"} Query Hierarchy</h4>
-                <div className="query-hierarchy">
-                  {queries2.length > 0 ? (
-                    queries2.map((query, index) => (
-                      <div key={index} className="query-root-node">
-                        {renderQueryNode(query)}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="no-hierarchy-data">No query hierarchy data available</div>
-                  )}
-                </div>
-              </div>
-            </div>
+          
+          <div className="metric-name">Successful Shards</div>
+          <div className="metric-value">{formatNumber(shardInfo1.successful)}</div>
+          <div className="metric-value">{formatNumber(shardInfo2.successful)}</div>
+          <div className="metric-diff">
+            {shardInfo1.successful !== undefined && shardInfo2.successful !== undefined ? 
+              (shardInfo1.successful === shardInfo2.successful ? 
+                'Identical' : 
+                formatNumber(shardInfo2.successful - shardInfo1.successful)) : 
+              'N/A'}
           </div>
-        )}
+        </div>
       </div>
     );
   };
@@ -1193,25 +838,88 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
+  const renderStructureDifferences = (differences) => {
+    if (!differences || differences.length === 0) {
+      return (
+        <div className="no-differences">
+          No structural differences found between the profiles.
+        </div>
+      );
+    }
+
+    // Group differences by path and queryType
+    const groupedDifferences = differences.reduce((acc, diff) => {
+      const key = `${diff.path}${diff.queryType ? ` (${diff.queryType})` : ''}`;
+      if (!acc[key]) {
+        acc[key] = {
+          path: diff.path,
+          queryType: diff.queryType,
+          description: diff.description,
+          differences: []
+        };
+      }
+      acc[key].differences.push(diff);
+      return acc;
+    }, {});
+
+    return (
+      <div className="structure-differences">
+        {Object.values(groupedDifferences).map((group, groupIndex) => (
+          <div key={groupIndex} className="difference-group">
+            <h4 className="difference-path">
+              {group.path}
+              {group.queryType && (
+                <span className="query-type">
+                  {group.queryType}
+                  {group.description && (
+                    <span className="query-description">
+                      {' - '}{group.description}
+                    </span>
+                  )}
+                </span>
+              )}
+            </h4>
+            <ul className="difference-list">
+              {group.differences.map((diff, index) => {
+                let className = '';
+                let message = '';
+                
+                if (diff.type === 'reorder') {
+                  className = 'field-reordered';
+                  message = (
+                    <>
+                      Field "{diff.field}" has changed position
+                      <span className="position-info">
+                        (from position {diff.oldPosition} to {diff.newPosition})
+                      </span>
+                    </>
+                  );
+                } else if (diff.type === 'missing') {
+                  className = 'field-missing';
+                  message = `Field "${diff.field}" is present in Profile 1 but missing in Profile 2`;
+                } else if (diff.type === 'added') {
+                  className = 'field-added';
+                  message = `Field "${diff.field}" is present in Profile 2 but missing in Profile 1`;
+                }
+
+                return (
+                  <li key={index} className={className}>
+                    {message}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="comparison-results-overlay">
       <div className="comparison-results-modal">
         <div className="comparison-results-header">
           <h2>Query Comparison</h2>
-          <div className="view-toggle">
-            <button
-              className={viewMode === 'summary' ? 'active' : ''}
-              onClick={() => setViewMode('summary')}
-            >
-              Summary
-            </button>
-            <button
-              className={viewMode === 'detailed' ? 'active' : ''}
-              onClick={() => setViewMode('detailed')}
-            >
-              Detailed
-            </button>
-          </div>
           <button className="close-button" onClick={onClose}>×</button>
         </div>
         
@@ -1222,22 +930,26 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
             </div>
           ) : (
             <>
-              {viewMode === 'summary' && (
-                !comparisonData ? (
-                  <div className="loading-indicator">Loading comparison data...</div>
-                ) : (
-                  renderSummaryView()
-                )
+              {!comparisonData ? (
+                <div className="loading-indicator">Loading comparison data...</div>
+              ) : (
+                <>
+                  <div className="comparison-section">
+                    <h3>Summary</h3>
+                    {renderSummaryView()}
+                  </div>
+
+                  <div className="execution-time-section">
+                    <h3>Execution Time Comparison</h3>
+                    {renderExecutionTimeComparison()}
+                  </div>
+                  
+                  <div className="comparison-section">
+                    <h3>Detailed Comparison</h3>
+                    {renderDetailedView()}
+                  </div>
+                </>
               )}
-              {viewMode === 'detailed' && (
-                !comparisonData ? (
-                  <div className="loading-indicator">Loading comparison data...</div>
-                ) : (
-                  renderDetailedView()
-                )
-              )}
-              {renderExecutionTimeComparison()}
-              {renderQueryHierarchyComparison()}
             </>
           )}
         </div>

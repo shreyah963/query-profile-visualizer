@@ -2,36 +2,64 @@ import React, { useState, useEffect } from 'react';
 import './ProfilerCompare.css';
 
 const ProfilerCompare = ({ onClose, profiles, onCompare }) => {
-  const [selectedProfiles, setSelectedProfiles] = useState([]);
+  const [profile1, setProfile1] = useState(null);
+  const [profile2, setProfile2] = useState(null);
   const [compareType, setCompareType] = useState('execution');
   const [error, setError] = useState('');
+  const [jsonInput1, setJsonInput1] = useState('');
+  const [jsonInput2, setJsonInput2] = useState('');
 
-  // Handle profile selection
-  const handleProfileSelect = (profileId) => {
-    const isSelected = selectedProfiles.includes(profileId);
-    
-    if (isSelected) {
-      // Remove from selection
-      setSelectedProfiles(selectedProfiles.filter(id => id !== profileId));
-    } else {
-      // Add to selection (max 2)
-      if (selectedProfiles.length < 2) {
-        setSelectedProfiles([...selectedProfiles, profileId]);
-      } else {
-        setError('You can only select up to 2 profiles for comparison.');
+  // Handle profile upload
+  const handleProfileUpload = (event, profileNumber) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const profileData = JSON.parse(e.target.result);
+        if (profileNumber === 1) {
+          setProfile1(profileData);
+        } else {
+          setProfile2(profileData);
+        }
+      } catch (err) {
+        setError('Invalid JSON file: ' + err.message);
         setTimeout(() => setError(''), 3000);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Handle JSON input
+  const handleJsonInput = (value, profileNumber) => {
+    try {
+      const profileData = JSON.parse(value);
+      if (profileNumber === 1) {
+        setProfile1(profileData);
+        setJsonInput1(value);
+      } else {
+        setProfile2(profileData);
+        setJsonInput2(value);
+      }
+    } catch (err) {
+      // Don't show error while typing
+      if (profileNumber === 1) {
+        setJsonInput1(value);
+      } else {
+        setJsonInput2(value);
       }
     }
   };
 
   // Handle compare action
   const handleCompare = () => {
-    if (selectedProfiles.length !== 2) {
-      setError('Please select exactly 2 profiles to compare.');
+    if (!profile1 || !profile2) {
+      setError('Please provide both profiles to compare.');
       return;
     }
 
-    onCompare(selectedProfiles, compareType);
+    onCompare([profile1, profile2], compareType);
     onClose();
   };
 
@@ -45,30 +73,40 @@ const ProfilerCompare = ({ onClose, profiles, onCompare }) => {
         
         <div className="profiler-compare-content">
           <div className="form-group">
-            <label>Select Profiles to Compare (select 2):</label>
-            <div className="profiles-list">
-              {profiles && profiles.length > 0 ? (
-                profiles.map((profile, index) => (
-                  <div key={index} className="profile-item">
-                    <input
-                      type="checkbox"
-                      id={`profile-${index}`}
-                      checked={selectedProfiles.includes(index)}
-                      onChange={() => handleProfileSelect(index)}
-                    />
-                    <label htmlFor={`profile-${index}`}>
-                      {profile.name || `Profile ${index + 1}`}
-                      {profile.timestamp && 
-                        <span className="profile-timestamp">
-                          {new Date(profile.timestamp).toLocaleString()}
-                        </span>
-                      }
-                    </label>
-                  </div>
-                ))
-              ) : (
-                <div className="no-profiles">No profiles available for comparison</div>
-              )}
+            <label>Profile 1:</label>
+            <div className="profile-input-container">
+              <input
+                type="file"
+                accept=".json"
+                onChange={(e) => handleProfileUpload(e, 1)}
+                className="profile-upload"
+              />
+              <textarea
+                className="profile-json-input"
+                value={jsonInput1}
+                onChange={(e) => handleJsonInput(e.target.value, 1)}
+                placeholder="Or paste profile output in JSON format here..."
+                rows={10}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Profile 2:</label>
+            <div className="profile-input-container">
+              <input
+                type="file"
+                accept=".json"
+                onChange={(e) => handleProfileUpload(e, 2)}
+                className="profile-upload"
+              />
+              <textarea
+                className="profile-json-input"
+                value={jsonInput2}
+                onChange={(e) => handleJsonInput(e.target.value, 2)}
+                placeholder="Or paste profile output in JSON format here..."
+                rows={10}
+              />
             </div>
           </div>
           

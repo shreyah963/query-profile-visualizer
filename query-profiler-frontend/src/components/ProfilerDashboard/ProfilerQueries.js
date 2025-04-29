@@ -148,8 +148,8 @@ const getTypeClassAndIcon = (type) => {
     case 'Count': return { className: 'type-Avg', icon: '∑' };
     default: return { className: '', icon: '•' };
   }
-};
-
+        };
+        
 // Dynamic color map for query types (use pastel colors for all types)
 const typeColorMap = {
   ConstantScoreQuery: '#ffe0b2', // pastel orange
@@ -211,15 +211,15 @@ const ProfilerQueries = ({
         const totalCollectorTime = collectors.reduce((sum, c) => sum + (c.time_in_nanos || 0), 0);
         const processedCollectors = collectors.map((c, i) => {
           const processed = processCollectorChildren(c, totalCollectorTime, i);
-          return {
+        return {
             ...processed,
             id: `collector-${i}`,
             type: c.name || 'Collector',
             queryName: c.name || 'Collector',
             displayName: c.name || 'Collector',
             children: processed.children || [],
-          };
-        });
+        };
+      });
         children.push({
           id: 'collectors',
           queryName: 'Collectors',
@@ -357,7 +357,7 @@ const ProfilerQueries = ({
         );
       })}
     </ul>
-  );
+    );
 
   // Resizer drag logic
   useEffect(() => {
@@ -417,13 +417,13 @@ const ProfilerQueries = ({
           <div className="query-hierarchy-container" style={{ flex: 1, overflowY: 'auto', height: '100%', minHeight: 0 }}>
             {renderHierarchy(processedQueryData[0].children)}
                   </div>
-        )}
+                )}
         {showHierarchy === 'agg' && processedAggData.length > 0 && processedAggData[0].children.length > 0 && (
           <div className="query-hierarchy-container" style={{ flex: 1, overflowY: 'auto', height: '100%', minHeight: 0 }}>
             {renderHierarchy(processedAggData[0].children)}
-                  </div>
-                )}
               </div>
+          )}
+        </div>
       <div
         className="resizer"
         onMouseDown={e => {
