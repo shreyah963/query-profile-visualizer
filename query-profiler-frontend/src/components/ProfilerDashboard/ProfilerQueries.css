@@ -27,11 +27,11 @@ html, body, #root, .profiler-dashboard {
 .query-group .query-item {
   display: flex;
   justify-content: space-between;
-  padding: 0.5rem;
+  padding: 0.75rem 1rem;
   cursor: pointer;
   background-color: #f8f9fa;
   transition: background-color 0.2s;
-  border-left: 3px solid #cbd5e1;
+  border-left: 4px solid #cbd5e1;
 }
 
 .query-item:hover {
@@ -88,17 +88,18 @@ html, body, #root, .profiler-dashboard {
 }
 
 .query-name {
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   font-weight: 500;
   display: flex;
   align-items: center;
   color: #1e293b;
+  padding: 8px 0;
 }
 
 .bullet {
   color: #666;
-  margin-right: 6px;
-  font-size: 1.2rem;
+  margin-right: 8px;
+  font-size: 1.3rem;
 }
 
 .query-metrics {
@@ -108,10 +109,10 @@ html, body, #root, .profiler-dashboard {
 }
 
 .metric {
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-family: monospace;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 4px 10px;
   background-color: #f0f5ff;
   border-radius: 4px;
   color: #3b82f6;
@@ -144,10 +145,11 @@ html, body, #root, .profiler-dashboard {
 .query-child {
   display: flex;
   justify-content: space-between;
-  padding: 0.4rem 0.5rem;
+  padding: 0.6rem 1rem;
   cursor: pointer;
   border-bottom: 1px solid #f0f0f0;
   transition: background-color 0.2s;
+  font-size: 1.05rem;
 }
 
 .query-child:last-child {
@@ -165,10 +167,10 @@ html, body, #root, .profiler-dashboard {
 } */
 
 .query-indent {
-  width: 12px;
-  margin-left: 24px;
+  width: 16px;
+  margin-left: 28px;
   border-left: 2px solid #e0e0e0;
-  margin-right: 8px;
+  margin-right: 12px;
 }
 
 .no-data, .no-queries {
@@ -249,12 +251,14 @@ html, body, #root, .profiler-dashboard {
 
 /* Query Group Types - softer, modern color and font for headers */
 .query-group[data-type="QueryRewrite"] .query-name,
-.query-group[data-type="Collectors"] .query-name {
+.query-group[data-type="Collectors"] .query-name,
+.query-group[data-type="Aggregations"] .query-name {
   color: #2a3957;
-  font-size: 1.08rem;
+  font-size: 1.2rem;
   font-weight: 600;
   font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
   letter-spacing: 0.01em;
+  padding: 10px 0;
 }
 
 .query-group[data-type="QueryRewrite"] .bullet,
@@ -262,32 +266,10 @@ html, body, #root, .profiler-dashboard {
   color: #b6c7e6;
 }
 
-.query-group[data-type="Aggregations"] .query-item {
-  background-color: #f3fafb;
-  border-left: 3px solid #b6e6e6;
-}
-
-.query-group[data-type="Aggregations"] .expand-btn[data-expanded="true"] {
-  background: #e6f4fa;
-  color: #2a3957;
-}
-
-.query-group[data-type="Aggregations"] .expand-btn[data-expanded="true"]:hover {
-  background: #d0eaf7;
-}
-
 .query-group[data-type="Aggregations"] .query-metrics .metric {
   background-color: #f3fafb;
   color: #2a3957;
   border: 1px solid #e0e8ef;
-}
-
-.query-group[data-type="Aggregations"] .query-name {
-  color: #2a3957;
-  font-size: 1.08rem;
-  font-weight: 600;
-  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-  letter-spacing: 0.01em;
 }
 
 .query-group[data-type="Aggregations"] .bullet {
@@ -503,28 +485,51 @@ html, body, #root, .profiler-dashboard {
 /* Tabs for Query/Aggregations */
 .query-tabs {
   display: flex;
-  border-bottom: 1px solid #e0e7ef;
+  border-bottom: 2px solid #e0e7ef;
   background: #f5faff;
+  padding: 0 1rem;
 }
+
 .query-tab {
   flex: 1;
-  padding: 0.75rem 0;
+  padding: 1rem 0;
   background: none;
   border: none;
   outline: none;
-  font-size: 1rem;
+  font-size: 1.2rem;
+  font-weight: 500;
   color: #3b4a6b;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition: all 0.2s ease;
+  position: relative;
+  margin: 0 0.5rem;
 }
+
 .query-tab.active {
   color: #2563eb;
   font-weight: 600;
-  background: #e0e7ef;
 }
+
+.query-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: #2563eb;
+  border-radius: 2px;
+}
+
+.query-tab:hover {
+  color: #2563eb;
+  background-color: #e0e7ef;
+}
+
 .query-tab:disabled {
   color: #b0b8c9;
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
 /* Collapsible tree toggle */

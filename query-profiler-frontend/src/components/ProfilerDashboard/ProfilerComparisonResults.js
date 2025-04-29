@@ -541,178 +541,184 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     );
   };
   
-  const renderDetailedView = () => {
-    if (!comparisonData) return <div>Loading comparison data...</div>;
-    
-    // Helper function to recursively render a query and its children as table rows
-    const renderQueryRows = (query1, query2, level = 0) => {
-      if (!query1 || !query2) return null;
-      const rows = [];
-      
-      // Parent query row
-      rows.push(
-        <tr key={query1.type + query1.description + level} className="query-parent-row">
-          <td colSpan={4} style={{ paddingLeft: `${level * 24}px` }}>
-            {query1.type}
-            {query1.description && (
-              <span style={{ color: '#5f6368', fontWeight: 'normal' }}> ({query1.description})</span>
-            )}
-          </td>
-        </tr>
-      );
-
-      // Get breakdown data from both profiles
-      const breakdown1 = query1.breakdown || {};
-      const breakdown2 = query2.breakdown || {};
-
-      // Get all unique keys from both breakdowns
-      const allKeys = new Set([...Object.keys(breakdown1), ...Object.keys(breakdown2)]);
-
-      // Sort keys to maintain consistent order
-      const sortedKeys = Array.from(allKeys).sort();
-
-      // Metrics/breakdown rows
-      sortedKeys.forEach((key) => {
-        const value1 = breakdown1[key];
-        const value2 = breakdown2[key];
-        let diffClass = '';
-        let diffText = '';
-
-        if (value1 === undefined) {
-          diffClass = 'field-missing-in-one';
-          diffText = 'Missing in Profile 1';
-        } else if (value2 === undefined) {
-          diffClass = 'field-missing-in-one';
-          diffText = 'Missing in Profile 2';
-          } else {
-          const diff = value2 - value1;
-          diffClass = diff === 0 ? 'similar' : (value2 > value1 ? 'regression' : 'improvement');
-          diffText = diff === 0 ? 'Identical' : `${formatTime(Math.abs(diff))} (${formatPercentage((diff / value1) * 100)})`;
-        }
-        
-        rows.push(
-          <tr key={key + level} className="query-metric-row">
-            <td style={{ paddingLeft: `${(level + 1) * 24 + 16}px` }}>
-              {formatBreakdownKey(key).operation}
-            </td>
-            <td className="metric-value">{value1 !== undefined ? formatTime(value1) : '—'}</td>
-            <td className="metric-value">{value2 !== undefined ? formatTime(value2) : '—'}</td>
-            <td className={`metric-diff ${diffClass}`}>{diffText}</td>
-          </tr>
-        );
-      });
-
-      // Recursively render children
-      if (query1.children && query2.children) {
-        query1.children.forEach((child1, idx) => {
-          const child2 = query2.children[idx];
-          if (child1 && child2) {
-            rows.push(...renderQueryRows(child1, child2, level + 1));
-          }
-        });
-      }
-
-      return rows;
-    };
-
-    // Helper function to render collector information as table rows
-    const renderCollectorRows = (collector1, collector2, level = 0) => {
-      if (!collector1 || !collector2) return null;
-      const rows = [];
-      
-      // Collector header row
-      rows.push(
-        <tr key={collector1.name + level} className="query-parent-row">
-          <td colSpan={4} style={{ paddingLeft: `${level * 24}px` }}>
-            {collector1.name}
-            {collector1.reason && (
-              <span style={{ color: '#5f6368', fontWeight: 'normal' }}> ({collector1.reason})</span>
-            )}
-          </td>
-        </tr>
-      );
-
-      // Get all unique keys from both collectors
-      const allKeys = new Set([...Object.keys(collector1), ...Object.keys(collector2)]);
-      const excludeKeys = new Set(['name', 'reason']); // Keys to exclude from comparison
-
-      // Sort keys to maintain consistent order
-      const sortedKeys = Array.from(allKeys)
-        .filter(key => !excludeKeys.has(key))
-        .sort();
-
-      // Collector metrics rows
-      sortedKeys.forEach((key) => {
-        const value1 = collector1[key];
-        const value2 = collector2[key];
-        let diffClass = '';
-        let diffText = '';
-
-        if (value1 === undefined) {
-          diffClass = 'field-missing-in-one';
-          diffText = 'Missing in Profile 1';
-        } else if (value2 === undefined) {
-          diffClass = 'field-missing-in-one';
-          diffText = 'Missing in Profile 2';
-      } else {
-          const diff = value2 - value1;
-          diffClass = diff === 0 ? 'similar' : (value2 > value1 ? 'regression' : 'improvement');
-          diffText = diff === 0 ? 'Identical' : `${formatTime(Math.abs(diff))} (${formatPercentage((diff / value1) * 100)})`;
-        }
-
-        rows.push(
-          <tr key={key + level} className="query-metric-row">
-            <td style={{ paddingLeft: `${(level + 1) * 24 + 16}px` }}>{key}</td>
-            <td className="metric-value">{value1 !== undefined ? formatTime(value1) : '—'}</td>
-            <td className="metric-value">{value2 !== undefined ? formatTime(value2) : '—'}</td>
-            <td className={`metric-diff ${diffClass}`}>{diffText}</td>
-          </tr>
-        );
-      });
-
-      return rows;
-    };
+  const renderHierarchicalComparison = () => {
+    if (!profiles || profiles.length < 2) return null;
 
     const profile1 = profiles[0]?.profile;
     const profile2 = profiles[1]?.profile;
 
-    return (
-      <div className="comparison-detailed">
-        <div className="comparison-grid-container">
-          <table className="comparison-table">
-            <thead>
-              <tr>
-                <th style={{ width: '40%' }}>Metric</th>
-                <th style={{ width: '20%' }}>{profiles[0]?.name || 'Profile 1'}</th>
-                <th style={{ width: '20%' }}>{profiles[1]?.name || 'Profile 2'}</th>
-                <th style={{ width: '20%' }}>Difference</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Query Section */}
-              <tr>
-                <td colSpan={4} className="metric-section-header">Query</td>
-              </tr>
-              {profile1?.shards?.[0]?.searches?.[0]?.query?.map((query1, index) => {
-                const query2 = profile2?.shards?.[0]?.searches?.[0]?.query?.[index];
-                return renderQueryRows(query1, query2, 0);
-              })}
+    const renderNode = (node1, node2, level = 0, type = 'query') => {
+      if (!node1 && !node2) return null;
 
-              {/* Collector Section */}
-              <tr>
-                <td colSpan={4} className="metric-section-header">Collector</td>
-              </tr>
-              {profile1?.shards?.[0]?.searches?.[0]?.collector?.map((collector1, index) => {
-                const collector2 = profile2?.shards?.[0]?.searches?.[0]?.collector?.[index];
-                return renderCollectorRows(collector1, collector2, 0);
-              })}
-            </tbody>
-          </table>
+      // For collectors, we need to handle the structure differently
+      const nodeType = type === 'collector' ? (node1?.name || node2?.name) : (node1?.type || node2?.type || type);
+      const nodeDesc = type === 'collector' ? (node1?.reason || node2?.reason) : (node1?.description || node2?.description);
+      
+      const isExpanded = expandedSections[`${type}-${nodeType}-${level}`];
+      const time1 = node1?.time_in_nanos ? node1.time_in_nanos / 1000000 : 0;
+      const time2 = node2?.time_in_nanos ? node2.time_in_nanos / 1000000 : 0;
+      const diff = time2 - time1;
+      const percentage = time1 ? ((diff / time1) * 100) : 0;
+      const percentageFormatted = percentage.toFixed(1);
+
+      // Get breakdown data from both nodes
+      const breakdown1 = node1?.breakdown || {};
+      const breakdown2 = node2?.breakdown || {};
+      const allMetrics = new Set([...Object.keys(breakdown1), ...Object.keys(breakdown2)]);
+
+      // Get children based on node type
+      const getChildren = (node) => {
+        if (!node) return [];
+        if (type === 'collector') {
+          // Handle collector children
+          return node.children || [];
+        }
+        // Default handling for query and aggregation
+        return node.children || [];
+      };
+
+      const children1 = getChildren(node1);
+      const children2 = getChildren(node2);
+      const hasChildren = children1.length > 0 || children2.length > 0;
+
+      const getDiffClass = (value1, value2, diffValue, diffPercentage) => {
+        if (value1 === undefined || value2 === undefined) return 'high-difference';
+        if (Math.abs(diffPercentage) > 50) return 'high-difference';
+        return 'low-difference';
+      };
+
+      return (
+        <div key={`${type}-${nodeType}-${level}`} className="query-hierarchy-item">
+          <div className="query-node-connector"></div>
+          <div 
+            className={`query-node ${hasChildren ? 'has-children' : ''}`}
+            data-type={nodeType}
+          >
+            <div 
+              className="query-node-header"
+              onClick={() => toggleSection(`${type}-${nodeType}-${level}`)}
+            >
+              {hasChildren && (
+                <span className="query-node-toggle">
+                  {isExpanded ? '▼' : '▶'}
+                </span>
+              )}
+              <h5>{nodeType}</h5>
+              <div className="query-node-metrics">
+                <div className="profile-comparison">
+                  <div className="profile-column">
+                    <div className="profile-header">{profiles[0]?.name || 'Profile 1'}</div>
+                    <span className="query-node-time">{formatTime(time1)}</span>
+                  </div>
+                  <div className="profile-column">
+                    <div className="profile-header">{profiles[1]?.name || 'Profile 2'}</div>
+                    <span className="query-node-time">{formatTime(time2)}</span>
+                  </div>
+                  <div className="profile-column">
+                    <div className="profile-header">Difference</div>
+                    <span className={`query-node-time ${getDiffClass(time1, time2, diff, percentage)}`}>
+                      {diff !== 0 ? `${diff > 0 ? '+' : ''}${formatTime(Math.abs(diff))} (${percentageFormatted}%)` : 'Identical'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {nodeDesc && (
+              <p className="query-node-description">{nodeDesc}</p>
+            )}
+            {isExpanded && (
+              <>
+                {allMetrics.size > 0 && (
+                  <div className="query-node-breakdown">
+                    <table className="breakdown-table">
+                      <tbody>
+                        {Array.from(allMetrics).sort().map(metric => {
+                          const value1 = breakdown1[metric];
+                          const value2 = breakdown2[metric];
+                          const metricDiff = value2 - value1;
+                          const metricPercentage = value1 ? ((metricDiff / value1) * 100) : 0;
+                          const metricPercentageFormatted = metricPercentage.toFixed(1);
+                          
+                          return (
+                            <tr key={metric}>
+                              <td>{formatBreakdownKey(metric).operation}</td>
+                              <td className="metric-value">{value1 !== undefined ? formatTime(value1) : '—'}</td>
+                              <td className="metric-value">{value2 !== undefined ? formatTime(value2) : '—'}</td>
+                              <td className={`metric-diff ${getDiffClass(value1, value2, metricDiff, metricPercentage)}`}>
+                                {value1 !== undefined && value2 !== undefined ? (
+                                  metricDiff === 0 ? 'Identical' : 
+                                  `${metricDiff > 0 ? '+' : ''}${formatTime(Math.abs(metricDiff))} (${metricPercentageFormatted}%)`
+                                ) : 'Missing field'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {hasChildren && (
+                  <div className="query-node-children">
+                    {children1.map((child1, index) => {
+                      const child2 = children2[index];
+                      return renderNode(child1, child2, level + 1, type);
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const renderSection = (title, nodes1, nodes2, type) => {
+      if (!nodes1?.length && !nodes2?.length) return null;
+      
+      return (
+        <div className="hierarchy-section">
+          <h3 className="hierarchy-section-title">{title}</h3>
+          <div className="hierarchy-section-content">
+            {(nodes1 || []).map((node1, index) => {
+              const node2 = (nodes2 || [])[index];
+              return renderNode(node1, node2, index, type);
+            })}
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div className="query-hierarchy">
+        <div className="query-hierarchy-root">
+          {/* Query Section */}
+          {renderSection(
+            "Query Hierarchy",
+            profile1?.shards?.[0]?.searches?.[0]?.query,
+            profile2?.shards?.[0]?.searches?.[0]?.query,
+            'query'
+          )}
+
+          {/* Collector Section */}
+          {renderSection(
+            "Collector Hierarchy",
+            profile1?.shards?.[0]?.searches?.[0]?.collector,
+            profile2?.shards?.[0]?.searches?.[0]?.collector,
+            'collector'
+          )}
+
+          {/* Aggregation Section */}
+          {renderSection(
+            "Aggregation Hierarchy",
+            profile1?.shards?.[0]?.aggregations,
+            profile2?.shards?.[0]?.aggregations,
+            'aggregation'
+          )}
         </div>
       </div>
     );
   };
-  
+
   const toggleSection = (path) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -959,22 +965,17 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
           ) : (
             <>
               {!comparisonData ? (
-                  <div className="loading-indicator">Loading comparison data...</div>
-                ) : (
+                <div className="loading-indicator">Loading comparison data...</div>
+              ) : (
                 <>
                   <div className="comparison-section">
                     <h3>Summary</h3>
                     {renderSummaryView()}
                   </div>
-
-                  <div className="execution-time-section">
-                    <h3>Execution Time Comparison</h3>
-              {renderExecutionTimeComparison()}
-                  </div>
                   
                   <div className="comparison-section">
-                    <h3>Detailed Comparison</h3>
-                    {renderDetailedView()}
+                    <h3>Hierarchical Comparison</h3>
+                    {renderHierarchicalComparison()}
                   </div>
                 </>
               )}
