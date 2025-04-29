@@ -261,7 +261,24 @@ const ProfilerQueries = ({
         totalDuration: totalAggTimeNanos / 1000000,
         time_ms: totalAggTimeNanos / 1000000,
         percentage: 100,
-        children: allAggs.map((a, i) => transformAggregation(a, i, totalAggTimeNanos))
+        children: allAggs.flatMap((a, i) => {
+          const aggNode = transformAggregation(a, i, totalAggTimeNanos);
+          if (a.debug && Object.keys(a.debug).length > 0) {
+            return [
+              aggNode,
+              {
+                id: `agg-debug-${i}`,
+                queryName: `Debug: ${a.description || a.type || 'Aggregation'}`,
+                type: 'AggregationDebug',
+                description: a.description || a.type || 'Aggregation',
+                debug: a.debug,
+                parentAggIndex: i,
+              }
+            ];
+          } else {
+            return [aggNode];
+          }
+        })
       }] : [];
 
       return { queries: queryChild, aggs: aggChild };

@@ -19,6 +19,7 @@ const ProfilerDashboard = ({ data, updateData }) => {
   const [jsonInput2, setJsonInput2] = useState('');
   const [uploadError, setUploadError] = useState(null);
   const [showJsonInput, setShowJsonInput] = useState(false);
+  const [selectedShardIndex, setSelectedShardIndex] = useState(0);
   
   if (!data && !showDualQueryInput) {
     return <div className="no-data">No profiling data available</div>;
@@ -34,38 +35,6 @@ const ProfilerDashboard = ({ data, updateData }) => {
     // If the uploaded object is { profile: { ... } }, use that as profileData
     const profileData = raw.profile || raw;
 
-    // Try to extract summary fields from both levels
-    const summarySource = raw._shards || raw.hits || raw.took ? raw : profileData;
-
-    // Initialize default summary data
-    let shardInfo = { total: 0, successful: 0, failed: 0 };
-    let hitsInfo = { total: 0, maxScore: 0 };
-    let executionTime = 0;
-
-    // Extract shard info if available
-    if (summarySource._shards) {
-      shardInfo = {
-        total: summarySource._shards.total || 0,
-        successful: summarySource._shards.successful || 0,
-        failed: summarySource._shards.failed || 0,
-      };
-    }
-
-    // Extract hits info if available
-    if (summarySource.hits) {
-      hitsInfo = {
-        total: typeof summarySource.hits.total === 'object'
-          ? summarySource.hits.total.value
-          : summarySource.hits.total || 0,
-        maxScore: summarySource.hits.max_score || 0,
-      };
-    }
-
-    // Extract execution time if available
-    if (summarySource.took) {
-      executionTime = summarySource.took;
-    }
-
     // Ensure we have shards data for visualization
     if (!profileData.shards && profileData.profile?.shards) {
       profileData.shards = profileData.profile.shards;
@@ -75,16 +44,11 @@ const ProfilerDashboard = ({ data, updateData }) => {
     console.log('Processed profile data:', {
       hasShards: Boolean(profileData.shards),
       shardCount: profileData.shards?.length,
-      shardInfo,
-      hitsInfo,
-      executionTime
     });
 
     return {
       profileData,
-      shardInfo,
-      hitsInfo,
-      executionTime,
+      selectedShardIndex: 0
     };
   };
 
@@ -103,8 +67,10 @@ const ProfilerDashboard = ({ data, updateData }) => {
         }
         // Update main visualization if not in comparison mode
         if (!showDualQueryInput) {
-          updateData(buildDashboardData(profileData));
+          const processedData = buildDashboardData(profileData);
+          updateData(processedData);
           setSelectedProfile(null);
+          setSelectedShardIndex(0);
         }
       } catch (err) {
         setError('Invalid JSON file: ' + err.message);
@@ -115,29 +81,46 @@ const ProfilerDashboard = ({ data, updateData }) => {
   };
 
   const handleJsonInput = (value, profileNumber) => {
+    // Update the text area value
+    if (profileNumber === 1) {
+      setJsonInput1(value);
+    } else {
+      setJsonInput2(value);
+    }
+
+    // Try to parse and update the profile data
     try {
       const profileData = JSON.parse(value);
-      console.log(`Profile ${profileNumber} data:`, profileData);
       if (profileNumber === 1) {
         setProfile1(profileData);
-        setJsonInput1(value);
       } else {
         setProfile2(profileData);
-        setJsonInput2(value);
       }
-      // Update main visualization if not in comparison mode
-      if (!showDualQueryInput) {
-        updateData(buildDashboardData(profileData));
-        setSelectedProfile(null);
-      }
+      setError(null);
     } catch (err) {
-      console.error(`Error parsing profile ${profileNumber}:`, err);
       // Don't show error while typing
+      // But clear the profile data if JSON becomes invalid
       if (profileNumber === 1) {
-        setJsonInput1(value);
+        setProfile1(null);
       } else {
-        setJsonInput2(value);
+        setProfile2(null);
       }
+    }
+  };
+
+  // New: Only update visualization when Visualize is clicked
+  const handleVisualizeClick = () => {
+    try {
+      const profileData = JSON.parse(jsonInput1);
+      setProfile1(profileData);
+      const processedData = buildDashboardData(profileData);
+      updateData(processedData);
+      setSelectedProfile(null);
+      setSelectedShardIndex(0);
+      setError(null);
+    } catch (err) {
+      setError('Invalid JSON: ' + err.message);
+      // Do not update the dashboard if JSON is invalid
     }
   };
 
@@ -164,6 +147,19 @@ const ProfilerDashboard = ({ data, updateData }) => {
     setJsonInput1('');
     setJsonInput2('');
     setError(null);
+  };
+
+  // Handle shard selection
+  const handleShardChange = (event) => {
+    const newIndex = parseInt(event.target.value, 10);
+    setSelectedShardIndex(newIndex);
+    // Update the data with the new selected shard
+    if (data && data.profileData) {
+      updateData({
+        ...data,
+        selectedShardIndex: newIndex
+      });
+    }
   };
 
   // Render dual query comparison UI
@@ -290,10 +286,11 @@ const ProfilerDashboard = ({ data, updateData }) => {
               placeholder="Paste your profile output in JSON format here..."
               rows={10}
             />
+            {error && <div className="upload-error">{error}</div>}
             <div className="action-buttons">
               <button
                 className="submit-json-btn"
-                onClick={() => setShowJsonInput(false)}
+                onClick={handleVisualizeClick}
                 disabled={!jsonInput1.trim()}
               >
                 Visualize
@@ -304,17 +301,37 @@ const ProfilerDashboard = ({ data, updateData }) => {
         {uploadError && <div className="upload-error">{uploadError}</div>}
       </div>
 
-      <div className="summary-separator">
-        <ProfilerSummary 
-          executionTime={data?.executionTime} 
-          shardInfo={data?.shardInfo} 
-          hitsInfo={data?.hitsInfo} 
-        />
-      </div>
+      {data && data.profileData && data.profileData.shards && data.profileData.shards.length > 0 && (
+        <div className="shard-selector">
+          <label htmlFor="shard-select">Select Shard: </label>
+          <select
+            id="shard-select"
+            value={selectedShardIndex}
+            onChange={handleShardChange}
+            className="shard-select"
+          >
+            {data.profileData.shards.map((shard, index) => (
+              <option key={shard.id || index} value={index}>
+                Shard {index + 1}: {shard.id || `[${index}]`}
+              </option>
+            ))}
+          </select>
+          <span className="shard-info">
+            {data.profileData.shards.length} shard{data.profileData.shards.length !== 1 ? 's' : ''} available
+          </span>
+        </div>
+      )}
 
       {data && data.profileData && (
         <ProfilerQueries 
-          data={data} 
+          data={{
+            ...data,
+            profileData: {
+              ...data.profileData,
+              // Only pass the selected shard's data for visualization
+              shards: [data.profileData.shards[selectedShardIndex]]
+            }
+          }}
           selectedProfile={selectedProfile}
           setSelectedProfile={setSelectedProfile}
           setProfileToCompare={showComparisonResults ? setProfileToCompare : () => {}}

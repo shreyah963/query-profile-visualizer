@@ -293,4 +293,45 @@
   .query-column {
     margin-bottom: 20px;
   }
+}
+
+.shard-selector {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shard-selector label {
+  font-weight: 500;
+  color: #333;
+}
+
+.shard-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 14px;
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.shard-select:hover {
+  border-color: #007bff;
+}
+
+.shard-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.shard-info {
+  color: #666;
+  font-size: 14px;
+  margin-left: auto;
 } 

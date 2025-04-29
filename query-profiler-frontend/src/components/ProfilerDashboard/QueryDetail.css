@@ -1250,4 +1250,39 @@ span.query-type {
 
 .query-node[data-type="MatchAllDocsQuery"] {
   border-left-color: #3b82f6;
+}
+
+/* Aggregation debug info styles */
+.aggregation-debug {
+  margin-top: 8px;
+  border-left: 2px solid #e0e0e0;
+  padding-left: 12px;
+}
+.aggregation-debug h6 {
+  margin: 8px 0 4px 0;
+  font-size: 0.85rem;
+  color: #666;
+}
+.aggregation-debug-data {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.debug-item-small {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  padding: 4px 0;
+}
+.debug-label-small {
+  color: #555;
+  text-transform: capitalize;
+}
+.debug-value-small {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #8a2be2;
+  font-weight: 500;
 } 

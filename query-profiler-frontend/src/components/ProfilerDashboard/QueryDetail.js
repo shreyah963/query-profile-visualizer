@@ -562,7 +562,9 @@ const QueryDetail = ({ query }) => {
                   <h5>{queryType}</h5>
                   <div className="query-node-metrics">
                     <span className="query-node-time">{formatDuration(childTimeMs)}</span>
-                    <span className="query-node-percentage">({safeToFixed(child.percentage || 0, 1)}%)</span>
+                    {!hasChildren && (
+                      <span className="query-node-percentage">({safeToFixed(child.percentage || 0, 1)}%)</span>
+                    )}
                   </div>
                 </div>
                 {child.description && (
@@ -613,6 +615,40 @@ const QueryDetail = ({ query }) => {
   const isRewrite = query.type === 'Rewrite' || query.queryName === 'Rewrite';
   const collectorChildren = query.children || [];
 
+  // Special rendering for AggregationDebug node
+  if (query.type === 'AggregationDebug' && query.debug) {
+    return (
+      <div className="query-detail">
+        <div className="detail-header">
+          <h3 className="query-type-aggregationdebug">
+            <span className="query-label">{query.queryName}</span>
+            <span className="technical-type">(Debug Info)</span>
+          </h3>
+          {query.description && (
+            <p className="query-description">{query.description}</p>
+          )}
+        </div>
+        <div className="detail-section">
+          <div className="section-header expanded">
+            <h4>Debug Info</h4>
+          </div>
+          <div className="section-content">
+            <div className="aggregation-debug">
+              <div className="aggregation-debug-data">
+                {Object.entries(query.debug).map(([key, value]) => (
+                  <div key={key} className="debug-item-small">
+                    <span className="debug-label-small">{key.replace(/_/g, ' ')}</span>
+                    <span className="debug-value-small">{String(value)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="query-detail">
       <div className="detail-header">
@@ -645,10 +681,12 @@ const QueryDetail = ({ query }) => {
           <span className="metric-label">Total time:</span>
           <span className="metric-value-total">{formatDuration(timeMs)}</span>
         </div>
-        <div className="detail-metric">
-          <span className="metric-label">Percentage of total execution:</span>
-          <span className="metric-value-percentage">{safeToFixed(percentage, 1)}%</span>
-        </div>
+        {!isRewrite && (
+          <div className="detail-metric">
+            <span className="metric-label">Percentage of total execution:</span>
+            <span className="metric-value-percentage">{safeToFixed(percentage, 1)}%</span>
+          </div>
+        )}
       </div>
 
       {/* Special handling for Rewrite node */}
@@ -678,7 +716,13 @@ const QueryDetail = ({ query }) => {
             <div className="collectors-list">
               {collectorChildren.length > 0 ? (
                 collectorChildren.map((collector, idx) => (
-                  <CollectorTree key={collector.name + '-' + idx} collector={collector} level={0} />
+                  <CollectorTree 
+                    key={collector.name + '-' + idx} 
+                    collector={collector} 
+                    level={0}
+                    formatDuration={formatDuration}
+                    safeToFixed={safeToFixed}
+                  />
                 ))
               ) : (
                 <div>No collector children found.</div>
@@ -913,6 +957,19 @@ const QueryDetail = ({ query }) => {
                             </div>
                           </div>
                         )}
+                        {agg.debug && Object.keys(agg.debug).length > 0 && (
+                          <div className="aggregation-debug">
+                            <h6>Debug Info:</h6>
+                            <div className="aggregation-debug-data">
+                              {Object.entries(agg.debug).map(([key, value]) => (
+                                <div key={key} className="debug-item-small">
+                                  <span className="debug-label-small">{key.replace(/_/g, ' ')}</span>
+                                  <span className="debug-value-small">{String(value)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                         );
@@ -972,7 +1029,7 @@ const QueryDetail = ({ query }) => {
 };
 
 // --- Add this helper component at the bottom of the file: ---
-function CollectorTree({ collector, level }) {
+function CollectorTree({ collector, level, formatDuration, safeToFixed }) {
   // Similar to renderQueryHierarchy, but for collectors
   return (
     <div className={`query-hierarchy-level level-${level}`} style={{ marginLeft: level * 18 }}>
@@ -980,8 +1037,8 @@ function CollectorTree({ collector, level }) {
         <div className="query-node-header">
           <h5 style={{ margin: 0 }}>{collector.name || 'Collector'}</h5>
           <div className="query-node-metrics">
-            <span className="query-node-time">{collector.time_ms ? `${collector.time_ms.toFixed(3)} ms` : ''}</span>
-            <span className="query-node-percentage">({collector.percentage ? `${collector.percentage.toFixed(1)}%` : ''})</span>
+            <span className="query-node-time">{formatDuration(collector.time_ms)}</span>
+            <span className="query-node-percentage">({safeToFixed(collector.percentage || 0, 1)}%)</span>
           </div>
         </div>
         {collector.reason && (
@@ -991,7 +1048,13 @@ function CollectorTree({ collector, level }) {
         {collector.children && collector.children.length > 0 && (
           <div className="query-node-children">
             {collector.children.map((child, idx) => (
-              <CollectorTree key={child.name + '-' + idx} collector={child} level={level + 1} />
+              <CollectorTree 
+                key={child.name + '-' + idx} 
+                collector={child} 
+                level={level + 1}
+                formatDuration={formatDuration}
+                safeToFixed={safeToFixed}
+              />
             ))}
           </div>
         )}

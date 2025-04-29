@@ -108,9 +108,17 @@ const queryTemplates = {
 const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
   const [viewMode, setViewMode] = useState(comparisonType || 'detailed');
   const [comparisonData, setComparisonData] = useState(null);
-  const [expandedSections, setExpandedSections] = useState({
-    executionTime: true,
-    queryStructure: false
+  const [expandedSections, setExpandedSections] = useState({});
+
+  // Add detailed logging of the profiles prop
+  console.log('ProfilerComparisonResults received props:', {
+    profiles,
+    comparisonType,
+    profilesLength: profiles?.length,
+    profile1Structure: profiles?.[0] ? Object.keys(profiles[0]) : 'no profile 1',
+    profile2Structure: profiles?.[1] ? Object.keys(profiles[1]) : 'no profile 2',
+    fullProfile1: profiles?.[0],
+    fullProfile2: profiles?.[1]
   });
 
   // Format breakdown key - shared helper function for displaying metrics consistently
@@ -120,9 +128,24 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
   };
 
   useEffect(() => {
-    console.log('Received profiles:', profiles);
+    console.log('useEffect triggered with profiles:', {
+      profilesExist: !!profiles,
+      profilesLength: profiles?.length,
+      profile1: profiles?.[0],
+      profile2: profiles?.[1]
+    });
+    
     if (profiles && profiles.length === 2) {
-      const data = calculateComparisonData(profiles[0], profiles[1]);
+      // Check if we need to transform the data structure
+      const transformedProfile1 = profiles[0]?.profile ? profiles[0] : { profile: profiles[0] };
+      const transformedProfile2 = profiles[1]?.profile ? profiles[1] : { profile: profiles[1] };
+      
+      console.log('Transformed profiles:', {
+        profile1: transformedProfile1,
+        profile2: transformedProfile2
+      });
+      
+      const data = calculateComparisonData(transformedProfile1, transformedProfile2);
       console.log('Calculated comparison data:', data);
       setComparisonData(data);
     }
@@ -267,9 +290,9 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
             path,
             oldPosition: f1.order + 1,
             newPosition: f2.order + 1
-          });
-        }
-      });
+            });
+          }
+        });
     });
     
     return differences;
@@ -335,8 +358,12 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
   const calculateComparisonData = (profile1, profile2) => {
     console.log('Calculating comparison data for profiles:', profile1, profile2);
 
-    if (!profile1?.profile || !profile2?.profile) {
-      console.warn('Invalid profile data structure:', { profile1, profile2 });
+    // Handle both direct profile objects and objects with profile property
+    const prof1 = profile1?.profile || profile1;
+    const prof2 = profile2?.profile || profile2;
+
+    if (!prof1?.shards?.[0]?.searches?.[0] || !prof2?.shards?.[0]?.searches?.[0]) {
+      console.warn('Invalid profile data structure:', { prof1, prof2 });
       return { differences: [] };
     }
 
@@ -414,8 +441,9 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     };
 
     // Compare main query breakdown
-    const query1 = profile1.profile?.shards?.[0]?.searches?.[0]?.query?.[0];
-    const query2 = profile2.profile?.shards?.[0]?.searches?.[0]?.query?.[0];
+    const query1 = prof1.shards[0].searches[0].query[0];
+    const query2 = prof2.shards[0].searches[0].query[0];
+    
     if (query1?.breakdown && query2?.breakdown) {
       compareObjects(query1.breakdown, query2.breakdown, {
         path: 'Query Breakdown',
@@ -449,8 +477,8 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     }
 
     // Compare collector fields
-    const collector1 = profile1.profile?.shards?.[0]?.searches?.[0]?.collector?.[0];
-    const collector2 = profile2.profile?.shards?.[0]?.searches?.[0]?.collector?.[0];
+    const collector1 = prof1.shards[0].searches[0].collector[0];
+    const collector2 = prof2.shards[0].searches[0].collector[0];
     if (collector1 && collector2) {
       compareObjects(collector1, collector2, {
         path: 'Collector',
@@ -515,7 +543,7 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
   
   const renderDetailedView = () => {
     if (!comparisonData) return <div>Loading comparison data...</div>;
-
+    
     // Helper function to recursively render a query and its children as table rows
     const renderQueryRows = (query1, query2, level = 0) => {
       if (!query1 || !query2) return null;
@@ -556,7 +584,7 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
         } else if (value2 === undefined) {
           diffClass = 'field-missing-in-one';
           diffText = 'Missing in Profile 2';
-        } else {
+          } else {
           const diff = value2 - value1;
           diffClass = diff === 0 ? 'similar' : (value2 > value1 ? 'regression' : 'improvement');
           diffText = diff === 0 ? 'Identical' : `${formatTime(Math.abs(diff))} (${formatPercentage((diff / value1) * 100)})`;
@@ -626,7 +654,7 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
         } else if (value2 === undefined) {
           diffClass = 'field-missing-in-one';
           diffText = 'Missing in Profile 2';
-        } else {
+      } else {
           const diff = value2 - value1;
           diffClass = diff === 0 ? 'similar' : (value2 > value1 ? 'regression' : 'improvement');
           diffText = diff === 0 ? 'Identical' : `${formatTime(Math.abs(diff))} (${formatPercentage((diff / value1) * 100)})`;
@@ -685,10 +713,10 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     );
   };
   
-  const toggleSection = (section) => {
+  const toggleSection = (path) => {
     setExpandedSections(prev => ({
       ...prev,
-      [section]: !prev[section]
+      [path]: !prev[path]
     }));
   };
 
@@ -778,11 +806,11 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
       }
       
       const shard = profile.profile.shards[0];
-      return {
+        return {
         total: 1,
         successful: 1,
-        failed: 0
-      };
+          failed: 0
+        };
     };
     
     const shardInfo1 = getShardInfo(profiles[0]);
@@ -790,45 +818,45 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     
     return (
       <div className="execution-time-content">
-        <div className="comparison-grid">
-          <div className="metric-label">Metric</div>
-          <div className="profile-label">{profiles[0]?.name || "Profile 1"}</div>
-          <div className="profile-label">{profiles[1]?.name || "Profile 2"}</div>
-          <div className="diff-label">Difference</div>
-          
-          <div className="metric-name">Execution Time</div>
-          <div className="metric-value">{formatDuration(time1)}</div>
-          <div className="metric-value">{formatDuration(time2)}</div>
-          <div className={`metric-diff ${isImprovement ? 'improvement' : Math.abs(diff) < 0.0001 ? 'similar' : 'regression'}`}>
-            {diff !== 'N/A' ? 
-              (Math.abs(diff) < 0.0001 ? 
-                'Identical execution times' : 
-                `${isImprovement ? '-' : '+'}${formatDuration(Math.abs(diff))} (${percentage}%)`) : 
-              'N/A'}
-          </div>
-          
-          <div className="metric-name">Total Hits</div>
+              <div className="comparison-grid">
+                <div className="metric-label">Metric</div>
+                <div className="profile-label">{profiles[0]?.name || "Profile 1"}</div>
+                <div className="profile-label">{profiles[1]?.name || "Profile 2"}</div>
+                <div className="diff-label">Difference</div>
+                
+                <div className="metric-name">Execution Time</div>
+                <div className="metric-value">{formatDuration(time1)}</div>
+                <div className="metric-value">{formatDuration(time2)}</div>
+                <div className={`metric-diff ${isImprovement ? 'improvement' : Math.abs(diff) < 0.0001 ? 'similar' : 'regression'}`}>
+                  {diff !== 'N/A' ? 
+                    (Math.abs(diff) < 0.0001 ? 
+                      'Identical execution times' : 
+                      `${isImprovement ? '-' : '+'}${formatDuration(Math.abs(diff))} (${percentage}%)`) : 
+                    'N/A'}
+                </div>
+                
+                <div className="metric-name">Total Hits</div>
           <div className="metric-value">{formatNumber(profiles[0]?.hits?.total?.value || 0)}</div>
           <div className="metric-value">{formatNumber(profiles[1]?.hits?.total?.value || 0)}</div>
-          <div className="metric-diff">
+                <div className="metric-diff">
             {profiles[0]?.hits?.total?.value !== undefined && profiles[1]?.hits?.total?.value !== undefined ? 
-              (profiles[0].hits.total.value === profiles[1].hits.total.value ? 
-                'Identical' : 
-                formatNumber(profiles[1].hits.total.value - profiles[0].hits.total.value)) : 
-              'N/A'}
-          </div>
-          
-          <div className="metric-name">Successful Shards</div>
-          <div className="metric-value">{formatNumber(shardInfo1.successful)}</div>
-          <div className="metric-value">{formatNumber(shardInfo2.successful)}</div>
-          <div className="metric-diff">
-            {shardInfo1.successful !== undefined && shardInfo2.successful !== undefined ? 
-              (shardInfo1.successful === shardInfo2.successful ? 
-                'Identical' : 
-                formatNumber(shardInfo2.successful - shardInfo1.successful)) : 
-              'N/A'}
-          </div>
-        </div>
+                    (profiles[0].hits.total.value === profiles[1].hits.total.value ? 
+                      'Identical' : 
+                      formatNumber(profiles[1].hits.total.value - profiles[0].hits.total.value)) : 
+                    'N/A'}
+                </div>
+                
+                <div className="metric-name">Successful Shards</div>
+                <div className="metric-value">{formatNumber(shardInfo1.successful)}</div>
+                <div className="metric-value">{formatNumber(shardInfo2.successful)}</div>
+                <div className="metric-diff">
+                  {shardInfo1.successful !== undefined && shardInfo2.successful !== undefined ? 
+                    (shardInfo1.successful === shardInfo2.successful ? 
+                      'Identical' : 
+                      formatNumber(shardInfo2.successful - shardInfo1.successful)) : 
+                    'N/A'}
+                </div>
+              </div>
       </div>
     );
   };
@@ -861,8 +889,8 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
       acc[key].differences.push(diff);
       return acc;
     }, {});
-
-    return (
+      
+      return (
       <div className="structure-differences">
         {Object.values(groupedDifferences).map((group, groupIndex) => (
           <div key={groupIndex} className="difference-group">
@@ -896,20 +924,28 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
                   );
                 } else if (diff.type === 'missing') {
                   className = 'field-missing';
-                  message = `Field "${diff.field}" is present in Profile 1 but missing in Profile 2`;
+                  message = (
+                    <span className="missing-field-message">
+                      Field "{diff.field}" is present in Profile 1 but missing in Profile 2
+                    </span>
+                  );
                 } else if (diff.type === 'added') {
                   className = 'field-added';
-                  message = `Field "${diff.field}" is present in Profile 2 but missing in Profile 1`;
+                  message = (
+                    <span className="missing-field-message">
+                      Field "{diff.field}" is present in Profile 2 but missing in Profile 1
+                    </span>
+                  );
                 }
-
-                return (
+    
+    return (
                   <li key={index} className={className}>
                     {message}
                   </li>
                 );
               })}
             </ul>
-          </div>
+        </div>
         ))}
       </div>
     );
@@ -931,8 +967,8 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
           ) : (
             <>
               {!comparisonData ? (
-                <div className="loading-indicator">Loading comparison data...</div>
-              ) : (
+                  <div className="loading-indicator">Loading comparison data...</div>
+                ) : (
                 <>
                   <div className="comparison-section">
                     <h3>Summary</h3>
@@ -941,7 +977,7 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
 
                   <div className="execution-time-section">
                     <h3>Execution Time Comparison</h3>
-                    {renderExecutionTimeComparison()}
+              {renderExecutionTimeComparison()}
                   </div>
                   
                   <div className="comparison-section">
