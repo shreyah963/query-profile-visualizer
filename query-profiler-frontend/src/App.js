@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQueryProfiler } from './hooks/useQueryProfiler';
-import ProfilerDashboard from './components/ProfilerDashboard/ProfilerDashboard';
+import ProfilerDashboard from './components/ProfilerDashboard/Dashboard';
 import './styles/global.css';
 
 // Error boundary component to catch rendering errors
