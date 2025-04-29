@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import ProfilerSummary from './ProfilerSummary';
-import ProfilerQueries from './ProfilerQueries';
+import ProfilerQueries from './ProfilerQueries/index';
 import QueryInput from './QueryInput';
-import ProfilerComparisonResults from './ProfilerComparisonResults';
+import { ProfilerComparisonResults } from './ProfilerComparison';
 import './ProfilerDashboard.css';
 
 const ProfilerDashboard = ({ data, updateData }) => {

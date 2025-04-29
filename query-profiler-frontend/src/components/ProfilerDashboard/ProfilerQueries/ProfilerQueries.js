@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import './ProfilerQueries.css';
-import QueryDetail from './QueryDetail';
+import './styles.css';
+import QueryDetail from '../QueryDetail';
     
     // Helper function to recursively transform a query and its children
     const transformQueryWithChildren = (query, index, parentTimeNanos, path = '') => {
