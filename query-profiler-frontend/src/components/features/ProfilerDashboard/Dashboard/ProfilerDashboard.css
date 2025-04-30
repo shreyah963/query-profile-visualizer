@@ -1,23 +1,24 @@
 .profiler-dashboard {
   background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   overflow: hidden;
-  margin-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 .dashboard-header {
   background-color: #2a2e33;
   color: white;
-  padding: 15px 20px;
+  padding: 25px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
 }
 
 .dashboard-header h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 32px;
   font-weight: 500;
 }
 
@@ -57,6 +58,15 @@
 
 .download-btn:hover {
   background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Dashboard content styles */
+.dashboard-content {
+  padding: 20px;
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .dashboard-actions {
@@ -206,6 +216,7 @@
 }
 
 .exit-dual-mode-btn {
+  margin-right: 20px;
   padding: 8px 16px;
   background-color: #673ab7;
   color: white;
@@ -213,6 +224,7 @@
   border-radius: 4px;
   cursor: pointer;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .exit-dual-mode-btn:hover {

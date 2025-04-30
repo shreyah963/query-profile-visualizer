@@ -173,66 +173,68 @@ const ProfilerDashboard = ({ data, updateData }) => {
           </button>
         </header>
 
-        <div className="dual-query-container">
-          <div className="query-column">
-            <div className="query-header">
-              <h2>Profile 1</h2>
-              <input
-                type="file"
-                accept=".json"
-                onChange={(e) => handleProfileUpload(e, 1)}
-                className="profile-upload"
-              />
+        <div className="dashboard-content">
+          <div className="dual-query-container">
+            <div className="query-column">
+              <div className="query-header">
+                <h2>Profile 1</h2>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => handleProfileUpload(e, 1)}
+                  className="profile-upload"
+                />
+              </div>
+              <div className="query-textarea-container">
+                <textarea
+                  value={jsonInput1}
+                  onChange={(e) => handleJsonInput(e.target.value, 1)}
+                  placeholder="Or paste profile output in JSON format here..."
+                  rows={10}
+                  className="query-textarea"
+                />
+              </div>
             </div>
-            <div className="query-textarea-container">
-              <textarea
-                value={jsonInput1}
-                onChange={(e) => handleJsonInput(e.target.value, 1)}
-                placeholder="Or paste profile output in JSON format here..."
-                rows={10}
-                className="query-textarea"
-              />
+            <div className="query-column">
+              <div className="query-header">
+                <h2>Profile 2</h2>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => handleProfileUpload(e, 2)}
+                  className="profile-upload"
+                />
+              </div>
+              <div className="query-textarea-container">
+                <textarea
+                  value={jsonInput2}
+                  onChange={(e) => handleJsonInput(e.target.value, 2)}
+                  placeholder="Or paste profile output in JSON format here..."
+                  rows={10}
+                  className="query-textarea"
+                />
+              </div>
             </div>
           </div>
-          <div className="query-column">
-            <div className="query-header">
-              <h2>Profile 2</h2>
-              <input
-                type="file"
-                accept=".json"
-                onChange={(e) => handleProfileUpload(e, 2)}
-                className="profile-upload"
-              />
-            </div>
-            <div className="query-textarea-container">
-              <textarea
-                value={jsonInput2}
-                onChange={(e) => handleJsonInput(e.target.value, 2)}
-                placeholder="Or paste profile output in JSON format here..."
-                rows={10}
-                className="query-textarea"
-              />
-            </div>
+
+          <div className="dual-query-actions">
+            {error && <div className="query-error">{error}</div>}
+            <button 
+              className="compare-profiles-btn"
+              onClick={handleCompare}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Comparing...' : 'Compare Profiles'}
+            </button>
           </div>
-        </div>
 
-        <div className="dual-query-actions">
-          {error && <div className="query-error">{error}</div>}
-          <button 
-            className="compare-profiles-btn"
-            onClick={handleCompare}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Comparing...' : 'Compare Profiles'}
-          </button>
+          {showComparisonResults && profile1 && profile2 && (
+            <ProfilerComparisonResults 
+              profiles={[profile1, profile2]} 
+              onClose={() => setShowComparisonResults(false)}
+            />
+          )}
         </div>
-
-        {showComparisonResults && profile1 && profile2 && (
-          <ProfilerComparisonResults 
-            profiles={[profile1, profile2]} 
-            onClose={() => setShowComparisonResults(false)}
-          />
-        )}
       </div>
     );
   }
@@ -247,105 +249,107 @@ const ProfilerDashboard = ({ data, updateData }) => {
         </div>
       </header>
 
-      <div className="dashboard-actions">
-        <div className="profile-actions">
-          <div className="profile-actions-left">
-            <button
-              className="visualize-btn"
-              onClick={() => setShowJsonInput(!showJsonInput)}
-            >
-              Visualize Profile
-            </button>
-            <input
-              type="file"
-              id="profile-upload"
-              accept=".json"
-              onChange={(e) => handleProfileUpload(e, 1)}
-              style={{ display: 'none' }}
-            />
-            <button
-              className="upload-btn"
-              onClick={() => document.getElementById('profile-upload').click()}
-            >
-              Upload File
-            </button>
-          </div>
-          <button
-            className="compare-btn"
-            onClick={handleDualQueryComparison}
-          >
-            Compare Profiles
-          </button>
-        </div>
-        {showJsonInput && (
-          <div className="json-input-container">
-            <textarea
-              className="json-input"
-              value={jsonInput1}
-              onChange={(e) => handleJsonInput(e.target.value, 1)}
-              placeholder="Paste your profile output in JSON format here..."
-              rows={10}
-            />
-            {error && <div className="upload-error">{error}</div>}
-            <div className="action-buttons">
+      <div className="dashboard-content">
+        <div className="dashboard-actions">
+          <div className="profile-actions">
+            <div className="profile-actions-left">
               <button
-                className="submit-json-btn"
-                onClick={handleVisualizeClick}
-                disabled={!jsonInput1.trim()}
+                className="visualize-btn"
+                onClick={() => setShowJsonInput(!showJsonInput)}
               >
-                Visualize
+                Visualize Profile
+              </button>
+              <input
+                type="file"
+                id="profile-upload"
+                accept=".json"
+                onChange={(e) => handleProfileUpload(e, 1)}
+                style={{ display: 'none' }}
+              />
+              <button
+                className="upload-btn"
+                onClick={() => document.getElementById('profile-upload').click()}
+              >
+                Upload File
               </button>
             </div>
+            <button
+              className="compare-btn"
+              onClick={handleDualQueryComparison}
+            >
+              Compare Profiles
+            </button>
+          </div>
+          {showJsonInput && (
+            <div className="json-input-container">
+              <textarea
+                className="json-input"
+                value={jsonInput1}
+                onChange={(e) => handleJsonInput(e.target.value, 1)}
+                placeholder="Paste your profile output in JSON format here..."
+                rows={10}
+              />
+              {error && <div className="upload-error">{error}</div>}
+              <div className="action-buttons">
+                <button
+                  className="submit-json-btn"
+                  onClick={handleVisualizeClick}
+                  disabled={!jsonInput1.trim()}
+                >
+                  Visualize
+                </button>
+              </div>
+            </div>
+          )}
+          {uploadError && <div className="upload-error">{uploadError}</div>}
+        </div>
+
+        {data && data.profileData && data.profileData.shards && data.profileData.shards.length > 0 && (
+          <div className="shard-selector">
+            <label htmlFor="shard-select">Select Shard: </label>
+            <select
+              id="shard-select"
+              value={selectedShardIndex}
+              onChange={handleShardChange}
+              className="shard-select"
+            >
+              {data.profileData.shards.map((shard, index) => (
+                <option key={shard.id || index} value={index}>
+                  Shard {index + 1}: {shard.id || `[${index}]`}
+                </option>
+              ))}
+            </select>
+            <span className="shard-info">
+              {data.profileData.shards.length} shard{data.profileData.shards.length !== 1 ? 's' : ''} available
+            </span>
           </div>
         )}
-        {uploadError && <div className="upload-error">{uploadError}</div>}
+
+        {data && data.profileData && (
+          <ProfilerQueries 
+            data={{
+              ...data,
+              profileData: {
+                ...data.profileData,
+                // Only pass the selected shard's data for visualization
+                shards: [data.profileData.shards[selectedShardIndex]]
+              }
+            }}
+            selectedProfile={selectedProfile}
+            setSelectedProfile={setSelectedProfile}
+            setProfileToCompare={showComparisonResults ? setProfileToCompare : () => {}}
+            profileToCompare={showComparisonResults ? profileToCompare : null}
+          />
+        )}
+
+        {showComparisonResults && selectedProfile && profileToCompare && (
+          <ProfilerComparisonResults 
+            profiles={[selectedProfile, profileToCompare]} 
+            comparisonType={comparisonType}
+            onClose={() => setShowComparisonResults(false)}
+          />
+        )}
       </div>
-
-      {data && data.profileData && data.profileData.shards && data.profileData.shards.length > 0 && (
-        <div className="shard-selector">
-          <label htmlFor="shard-select">Select Shard: </label>
-          <select
-            id="shard-select"
-            value={selectedShardIndex}
-            onChange={handleShardChange}
-            className="shard-select"
-          >
-            {data.profileData.shards.map((shard, index) => (
-              <option key={shard.id || index} value={index}>
-                Shard {index + 1}: {shard.id || `[${index}]`}
-              </option>
-            ))}
-          </select>
-          <span className="shard-info">
-            {data.profileData.shards.length} shard{data.profileData.shards.length !== 1 ? 's' : ''} available
-          </span>
-        </div>
-      )}
-
-      {data && data.profileData && (
-        <ProfilerQueries 
-          data={{
-            ...data,
-            profileData: {
-              ...data.profileData,
-              // Only pass the selected shard's data for visualization
-              shards: [data.profileData.shards[selectedShardIndex]]
-            }
-          }}
-          selectedProfile={selectedProfile}
-          setSelectedProfile={setSelectedProfile}
-          setProfileToCompare={showComparisonResults ? setProfileToCompare : () => {}}
-          profileToCompare={showComparisonResults ? profileToCompare : null}
-        />
-      )}
-
-      {showComparisonResults && selectedProfile && profileToCompare && (
-        <ProfilerComparisonResults 
-          profiles={[selectedProfile, profileToCompare]} 
-          comparisonType={comparisonType}
-          onClose={() => setShowComparisonResults(false)}
-        />
-      )}
     </div>
   );
 };
