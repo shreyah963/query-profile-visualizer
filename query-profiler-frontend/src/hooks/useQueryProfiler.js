@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { profileTemplate, processProfileData } from '../services/profileService';
 
 export const useQueryProfiler = () => {
   const [data, setData] = useState(null);
@@ -9,8 +9,9 @@ export const useQueryProfiler = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/query-profiler');
-        setData(response.data);
+        // Use the template data instead of making an API call
+        const processedData = processProfileData(profileTemplate);
+        setData(processedData);
       } catch (err) {
         setError(err);
       } finally {
