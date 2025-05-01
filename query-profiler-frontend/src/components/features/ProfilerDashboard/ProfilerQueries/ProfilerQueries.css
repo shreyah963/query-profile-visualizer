@@ -429,7 +429,7 @@ html, body, #root, .profiler-dashboard {
   gap: 0.3em;
   min-height: 1.8em;
   cursor: pointer;
-  padding: 0.13em 0.3em 0.13em 0.3em;
+  padding: 0.13em 0.8em 0.13em 0.3em;
   border-radius: 6px;
   transition: background 0.15s, color 0.15s;
   font-weight: 400;
@@ -472,8 +472,28 @@ html, body, #root, .profiler-dashboard {
 }
 
 .query-hierarchy-label {
-  margin-left: 0.1rem;
-  font-size: 1.04em;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.query-type-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.query-hierarchy-percentage {
+  font-size: 0.85em;
+  color: #64748b;
+  font-weight: 500;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.query-hierarchy-row.selected .query-hierarchy-percentage {
+  color: #2563eb;
 }
 
 .query-detail-placeholder {

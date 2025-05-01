@@ -346,7 +346,7 @@ const ProfilerQueries = ({
         const expanded = expandedNodes[node.id] !== false;
         // Use a composite key for extra safety
         const nodeKey = node.id ? `${node.id}-${depth}-${idx}` : `node-${depth}-${idx}`;
-    return (
+        return (
           <li
             key={nodeKey}
             className={"query-hierarchy-node"}
@@ -367,14 +367,21 @@ const ProfilerQueries = ({
                   {expanded ? '▾' : '▸'}
                 </span>
               )}
-              <span className="query-hierarchy-label">{node.type || node.queryName}</span>
-          </div>
+              <span className="query-hierarchy-label">
+                <span className="query-type-name">
+                  {node.type || node.queryName}
+                </span>
+                <span className="query-hierarchy-percentage">
+                  {node.percentage && node.type !== 'Rewrite' ? `(${node.percentage.toFixed(1)}%)` : ''}
+                </span>
+              </span>
+            </div>
             {hasChildren && expanded && renderHierarchy(node.children, depth + 1)}
           </li>
         );
       })}
     </ul>
-    );
+  );
 
   // Resizer drag logic
   useEffect(() => {
