@@ -3,6 +3,7 @@ import ProfilerSummary from '../ProfilerSummary';
 import ProfilerQueries from '../ProfilerQueries';
 import QueryInput from '../QueryInput';
 import { ProfilerComparisonResults } from '../ProfilerComparison';
+import ShardVisualization from '../ShardVisualization/ShardVisualization';
 import './ProfilerDashboard.css';
 
 const ProfilerDashboard = ({ data, updateData }) => {
@@ -162,6 +163,17 @@ const ProfilerDashboard = ({ data, updateData }) => {
     }
   };
 
+  // Handle shard selection from visualization
+  const handleShardSelect = (shardIndex) => {
+    setSelectedShardIndex(shardIndex);
+    if (data && data.profileData) {
+      updateData({
+        ...data,
+        selectedShardIndex: shardIndex
+      });
+    }
+  };
+
   // Render dual query comparison UI
   if (showDualQueryInput) {
     return (
@@ -303,6 +315,13 @@ const ProfilerDashboard = ({ data, updateData }) => {
         )}
         {uploadError && <div className="upload-error">{uploadError}</div>}
       </div>
+
+      {data && data.profileData && data.profileData.shards && data.profileData.shards.length > 1 && (
+        <ShardVisualization 
+          profileData={data.profileData}
+          onShardSelect={handleShardSelect}
+        />
+      )}
 
       {data && data.profileData && data.profileData.shards && data.profileData.shards.length > 0 && (
         <div className="shard-selector">
