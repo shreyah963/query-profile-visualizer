@@ -3,7 +3,7 @@ import './styles.css';
 import QueryDetail from '../QueryDetail';
     
     // Helper function to recursively transform a query and its children
-    const transformQueryWithChildren = (query, index, parentTimeNanos, path = '') => {
+    const transformQueryWithChildren = (query, index, parentTimeNanos, path = '', queryCounts = {}, allQueries = []) => {
       const nodeId = path ? `${path}-${index}` : `${index}`;
       const formattedBreakdown = {};
       if (query.breakdown) {
@@ -37,18 +37,36 @@ import QueryDetail from '../QueryDetail';
         });
       }
       const thisTimeNanos = query.time_in_nanos || 0;
+      
+      // Handle query name with suffix for root queries
+      let queryName = query.type || 'Unknown Query';
+      if (!path) { // Only for root queries
+        const count = queryCounts[queryName] || 0;
+        if (count > 1) {
+          // Find the current instance number
+          let instanceNumber = 1;
+          for (let i = 0; i < index; i++) {
+            if (allQueries[i]?.type === query.type) {
+              instanceNumber++;
+            }
+          }
+          queryName = `${queryName}${instanceNumber}`;
+        }
+      }
+      
       const transformedChildren = (query.children || []).map((child, childIndex) => 
-        transformQueryWithChildren(child, childIndex, thisTimeNanos, nodeId)
+        transformQueryWithChildren(child, childIndex, thisTimeNanos, nodeId, queryCounts, allQueries)
       );
+      
       return {
         id: `query-${nodeId}`,
-        queryName: query.type || 'Unknown Query',
+        queryName: queryName,
         type: query.type || 'Unknown Query',
         description: query.description || '',
         operation: query.description || query.type,
         totalDuration: thisTimeNanos / 1000000,
         time_ms: thisTimeNanos / 1000000,
-        percentage: parentTimeNanos > 0 ? (thisTimeNanos / parentTimeNanos) * 100 : 0,
+        percentage: !path ? 100 : (parentTimeNanos > 0 ? (thisTimeNanos / parentTimeNanos) * 100 : 0), // Root queries always show 100%
         breakdown: formattedBreakdown,
         rawBreakdown: query.breakdown || {},
         children: transformedChildren
@@ -192,7 +210,18 @@ const ProfilerQueries = ({
       const rewrite_time = data.profileData.shards[0]?.searches?.[0]?.rewrite_time;
       const collectors = data.profileData.shards[0]?.searches?.[0]?.collector || [];
       const totalQueryTimeNanos = queries.reduce((sum, q) => sum + (q.time_in_nanos || 0), 0);
-      const children = queries.map((q, i) => transformQueryWithChildren(q, i, totalQueryTimeNanos));
+      
+      // Initialize queryCounts object
+      const queryCounts = {};
+      
+      // First pass to count query types
+      queries.forEach(query => {
+        const type = query.type || 'Unknown Query';
+        queryCounts[type] = (queryCounts[type] || 0) + 1;
+      });
+      
+      const children = queries.map((q, i) => transformQueryWithChildren(q, i, totalQueryTimeNanos, '', queryCounts, queries));
+      
       if (rewrite_time) {
         children.push({
           id: 'rewrite',
@@ -346,7 +375,7 @@ const ProfilerQueries = ({
         const expanded = expandedNodes[node.id] !== false;
         // Use a composite key for extra safety
         const nodeKey = node.id ? `${node.id}-${depth}-${idx}` : `node-${depth}-${idx}`;
-        return (
+    return (
           <li
             key={nodeKey}
             className={"query-hierarchy-node"}
@@ -369,19 +398,19 @@ const ProfilerQueries = ({
               )}
               <span className="query-hierarchy-label">
                 <span className="query-type-name">
-                  {node.type || node.queryName}
+                  {node.queryName}
                 </span>
                 <span className="query-hierarchy-percentage">
                   {node.percentage && node.type !== 'Rewrite' ? `(${node.percentage.toFixed(1)}%)` : ''}
                 </span>
               </span>
-            </div>
+          </div>
             {hasChildren && expanded && renderHierarchy(node.children, depth + 1)}
           </li>
         );
       })}
     </ul>
-  );
+    );
 
   // Resizer drag logic
   useEffect(() => {
