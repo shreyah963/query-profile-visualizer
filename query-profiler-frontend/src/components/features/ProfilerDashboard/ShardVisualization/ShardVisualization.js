@@ -2,8 +2,8 @@ import React, { useState, useMemo } from 'react';
 import './ShardVisualization.css';
 
 const ShardVisualization = ({ profileData, onShardSelect }) => {
-  const [topN, setTopN] = useState('all');
-  const [topNAgg, setTopNAgg] = useState('all');
+  const [topN, setTopN] = useState(5);
+  const [topNAgg, setTopNAgg] = useState(5);
   
   // Calculate execution times for each shard
   const shardMetrics = useMemo(() => {

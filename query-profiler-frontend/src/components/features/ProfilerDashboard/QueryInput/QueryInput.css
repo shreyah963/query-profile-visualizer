@@ -84,18 +84,54 @@
 
 .query-textarea-container {
   margin-bottom: 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
-.query-textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+.query-input-wrapper {
+  display: flex;
+  position: relative;
+  background-color: #f8fafc;
+}
+
+.line-numbers {
+  padding: 0.5rem;
+  background-color: #f1f5f9;
+  border-right: 1px solid #e2e8f0;
+  font-family: monospace;
+  color: #64748b;
+  text-align: right;
+  user-select: none;
+  min-width: 2.5rem;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.query-input {
+  flex: 1;
+  padding: 0.5rem;
   font-family: monospace;
   font-size: 14px;
+  line-height: 1.5;
+  border: none;
   resize: vertical;
   min-height: 200px;
+  background-color: #f8fafc;
+  color: #1e293b;
+  overflow-y: auto;
 }
+
+.query-input:focus {
+  outline: none;
+}
+
+/* Syntax highlighting for JSON */
+.query-input .string { color: #059669; }
+.query-input .number { color: #0ea5e9; }
+.query-input .boolean { color: #7c3aed; }
+.query-input .null { color: #64748b; }
+.query-input .key { color: #f59e42; }
 
 .query-input-actions {
   display: flex;

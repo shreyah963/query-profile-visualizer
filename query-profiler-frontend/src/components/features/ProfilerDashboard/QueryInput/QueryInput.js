@@ -276,14 +276,22 @@ const QueryInput = ({
           )}
           
           <div className="query-textarea-container">
-            <textarea
-              ref={textareaRef}
-              value={queryInput}
-              onChange={handleQueryInputChange}
-              placeholder="Enter your query in JSON format"
-              rows={10}
-              className="query-textarea"
-            />
+            <div className="query-input-wrapper">
+              <div className="line-numbers">
+                {queryInput.split('\n').map((_, i) => (
+                  <div key={i} style={{ height: '1.5em' }}>{i + 1}</div>
+                ))}
+              </div>
+              <textarea
+                ref={textareaRef}
+                value={queryInput}
+                onChange={handleQueryInputChange}
+                placeholder="Enter your query in JSON format"
+                rows={10}
+                className="query-input"
+                style={{ lineHeight: '1.5em' }}
+              />
+            </div>
           </div>
           
           <div className="query-input-actions">

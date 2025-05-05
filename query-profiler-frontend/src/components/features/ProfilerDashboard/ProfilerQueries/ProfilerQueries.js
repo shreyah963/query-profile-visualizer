@@ -3,7 +3,7 @@ import './styles.css';
 import QueryDetail from '../QueryDetail';
     
     // Helper function to recursively transform a query and its children
-    const transformQueryWithChildren = (query, index, parentTimeNanos, path = '', queryCounts = {}, allQueries = []) => {
+    const transformQueryWithChildren = (query, index, parentTimeNanos, path = '', queryCounts = {}, allQueries = [], rootTimeNanos = null) => {
       const nodeId = path ? `${path}-${index}` : `${index}`;
       const formattedBreakdown = {};
       if (query.breakdown) {
@@ -38,6 +38,12 @@ import QueryDetail from '../QueryDetail';
       }
       const thisTimeNanos = query.time_in_nanos || 0;
       
+      // If rootTimeNanos is not set, this is the root node
+      if (rootTimeNanos == null) rootTimeNanos = thisTimeNanos;
+      
+      // Calculate percentage relative to root
+      const percentage = rootTimeNanos > 0 ? (thisTimeNanos / rootTimeNanos) * 100 : 0;
+      
       // Handle query name with suffix for root queries
       let queryName = query.type || 'Unknown Query';
       if (!path) { // Only for root queries
@@ -55,7 +61,7 @@ import QueryDetail from '../QueryDetail';
       }
       
       const transformedChildren = (query.children || []).map((child, childIndex) => 
-        transformQueryWithChildren(child, childIndex, thisTimeNanos, nodeId, queryCounts, allQueries)
+        transformQueryWithChildren(child, childIndex, thisTimeNanos, nodeId, queryCounts, allQueries, rootTimeNanos)
       );
       
       return {
@@ -66,7 +72,7 @@ import QueryDetail from '../QueryDetail';
         operation: query.description || query.type,
         totalDuration: thisTimeNanos / 1000000,
         time_ms: thisTimeNanos / 1000000,
-        percentage: !path ? 100 : (parentTimeNanos > 0 ? (thisTimeNanos / parentTimeNanos) * 100 : 0), // Root queries always show 100%
+        percentage: !path ? 100 : percentage, // Root queries always show 100%
         breakdown: formattedBreakdown,
         rawBreakdown: query.breakdown || {},
         children: transformedChildren

@@ -560,30 +560,6 @@ const QueryDetail = ({ query }) => {
                   <p className="query-node-description">{child.description}</p>
                 )}
                 
-                {/* Render breakdown summary */}
-                {child.breakdown && Object.keys(child.breakdown).length > 0 && (
-                  <div className="query-node-breakdown">
-                    <div className="query-node-breakdown-summary">
-                      {Object.entries(child.breakdown)
-                        .filter(([key, value]) => 
-                          typeof value === 'number' && 
-                          value > 0 && 
-                          !key.endsWith('_count') && 
-                          ['next_doc', 'advance', 'build_scorer', 'match'].includes(key)
-                        )
-                        .sort(([_, a], [__, b]) => b - a)
-                        .slice(0, 3) // Show top 3 operations
-                        .map(([key, value]) => (
-                          <span key={key} className="query-node-operation">
-                            {key.replace(/_/g, ' ')}: {formatNumber(value)} ns
-                          </span>
-                        ))
-                      }
-                    </div>
-                  </div>
-                )}
-                
-                {/* Recursively render children */}
                 {hasChildren && isExpanded && (
                   <div className="query-node-children">
                     {renderQueryHierarchy(child.children, level + 1, rootTimeMs)}
