@@ -422,6 +422,13 @@ html, body, #root, .profiler-dashboard {
 .query-hierarchy-node.type-RangeQuery { border-left: 3px solid #e11d48; }
 .query-hierarchy-node.type-MatchAllDocsQuery { border-left: 3px solid #fbbf24; }
 .query-hierarchy-node.type-Aggregations { border-left: 3px solid #0ea5e9; }
+/* Add Collectors color coding */
+.query-hierarchy-node.type-Collectors, 
+.query-hierarchy-node.type-Collector {
+  border-left: 3px solid #10b981 !important;
+  color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.1) !important;
+}
 
 .query-hierarchy-row {
   display: flex;
@@ -606,7 +613,7 @@ html, body, #root, .profiler-dashboard {
   margin-left: 0.2rem;
 }
 
-/* Color coding for node types */
+/* Color coding for node types (text color) */
 .query-hierarchy-node.type-Query { color: #2563eb; }
 .query-hierarchy-node.type-BooleanQuery { color: #7c3aed; }
 .query-hierarchy-node.type-TermQuery { color: #059669; }
@@ -615,6 +622,18 @@ html, body, #root, .profiler-dashboard {
 .query-hierarchy-node.type-RangeQuery { color: #e11d48; }
 .query-hierarchy-node.type-MatchAllDocsQuery { color: #fbbf24; }
 .query-hierarchy-node.type-Avg, .query-hierarchy-node.type-Sum, .query-hierarchy-node.type-Count { color: #0d9488; }
+/* Add Collectors text color */
+.query-hierarchy-node.type-Collectors, 
+.query-hierarchy-node.type-Collector {
+  color: #10b981 !important;
+}
+
+/* Ensure collector nodes maintain their color on hover */
+.query-hierarchy-node.type-Collectors:hover, 
+.query-hierarchy-node.type-Collector:hover {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10b981 !important;
+}
 
 /* Icon for node types */
 .query-hierarchy-icon {
@@ -635,13 +654,13 @@ html, body, #root, .profiler-dashboard {
   padding: 0.1em 0.2em;
   border-radius: 5px;
   transition: background 0.15s, color 0.15s;
+  font-weight: 400;
+  color: #1e293b;
+  background: none;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* .query-hierarchy-node.selected .query-hierarchy-row {
-  background: #dbeafe;
-  color: #1d4ed8;
-  font-weight: 600;
-} */
 .query-hierarchy-node .query-hierarchy-row:hover {
   background: #e0e7ef;
   color: #2563eb;

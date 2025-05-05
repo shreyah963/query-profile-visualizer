@@ -82,7 +82,7 @@ import QueryDetail from '../QueryDetail';
 // Helper function to recursively process collector children
 const processCollectorChildren = (collector, parentCollectorTimeNanos, index = 0) => {
   const id = collector.name ? `collector-${collector.name.replace(/\s+/g, '-')}-${index}` : `collector-${index}`;
-  const type = collector.name || 'Collector';
+  const type = 'Collector'; // Always set type to 'Collector' for collector nodes
   const queryName = collector.name || 'Collector';
   const description = collector.reason || '';
   const thisTimeNanos = collector.time_in_nanos || 0;
@@ -92,10 +92,10 @@ const processCollectorChildren = (collector, parentCollectorTimeNanos, index = 0
   const breakdown = collector.breakdown || {};
   const rawBreakdown = collector.breakdown || {};
   const children = (collector.children || []).map((child, idx) => processCollectorChildren(child, thisTimeNanos, idx));
-        return {
+  return {
     id,
     type,
-      queryName,
+    queryName,
     description,
     totalDuration,
     time_ms,
@@ -104,7 +104,7 @@ const processCollectorChildren = (collector, parentCollectorTimeNanos, index = 0
     rawBreakdown,
     children,
   };
-    };
+};
     
     // Helper function to recursively transform an aggregation and its children
     const transformAggregation = (agg, index, totalQueryTimeNanos, path = '') => {
@@ -183,9 +183,9 @@ const typeColorMap = {
   MatchAllDocsQuery: '#fff9c4', // pastel yellow
   Aggregations: '#b3e5fc',      // pastel blue
   Rewrite: '#c8e6c9',           // pastel green
-  Collectors: '#f8bbd0',        // pastel pink
-  Collector: '#f8bbd0',         // pastel pink (for individual collector nodes)
-  Query: '#bbdefb',              // pastel blue
+  Collectors: '#f2959b',        // pink for collectors
+  Collector: '#a4b0fe',         // purple for individual collector nodes
+  Query: '#bbdefb',             // pastel blue
 };
 const getTypeColor = (type) => typeColorMap[type] || '#e0e7ef';
 
