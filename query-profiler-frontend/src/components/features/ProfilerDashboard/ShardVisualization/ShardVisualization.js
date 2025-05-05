@@ -3,6 +3,7 @@ import './ShardVisualization.css';
 
 const ShardVisualization = ({ profileData, onShardSelect }) => {
   const [topN, setTopN] = useState('all');
+  const [topNAgg, setTopNAgg] = useState('all');
   
   // Calculate execution times for each shard
   const shardMetrics = useMemo(() => {
@@ -22,11 +23,18 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
       const collectorsTime = shard.searches?.[0]?.collector?.reduce((sum, collector) => 
         sum + (collector.time_in_nanos || 0), 0) || 0;
 
+      // Calculate aggregation time by summing up all aggregation types at the shard level
+      const aggTime = shard.aggregations?.reduce((sum, agg) => {
+        // Add the time_in_nanos for each aggregation
+        return sum + (agg.time_in_nanos || 0);
+      }, 0) || 0;
+
       // Log the components for debugging
       console.log('Time components for shard', index, {
         queriesTime: searchTime / 1000000,
         rewriteTime: rewriteTime / 1000000,
         collectorsTime: collectorsTime / 1000000,
+        aggTime: aggTime / 1000000,
         total: (searchTime + rewriteTime + collectorsTime) / 1000000
       });
       
@@ -34,7 +42,7 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
         id: shard.id || `shard-${index}`,
         name: shard.id || `Shard ${index + 1}`,
         searchTime: (searchTime + rewriteTime + collectorsTime) / 1000000, // Convert to milliseconds
-        aggTime: 0, // We'll handle aggregations separately if needed
+        aggTime: aggTime / 1000000, // Convert to milliseconds
         index
       };
     });
@@ -53,9 +61,11 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
   }, [shardMetrics, topN]);
 
   const topAggShards = useMemo(() => {
-    const sortedShards = [...shardMetrics].sort((a, b) => b.aggTime - a.aggTime);
-    return topN === 'all' ? sortedShards : sortedShards.slice(0, topN);
-  }, [shardMetrics, topN]);
+    // Only include shards with non-zero aggregation time
+    const shardsWithAggregations = shardMetrics.filter(shard => shard.aggTime > 0);
+    const sortedShards = [...shardsWithAggregations].sort((a, b) => b.aggTime - a.aggTime);
+    return topNAgg === 'all' ? sortedShards : sortedShards.slice(0, topNAgg);
+  }, [shardMetrics, topNAgg]);
 
   // Calculate max time for scaling
   const maxSearchTime = Math.max(...topSearchShards.map(s => s.searchTime));
@@ -67,24 +77,23 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
 
   return (
     <div className="shard-visualization">
-      <div className="shard-controls">
-        <label htmlFor="top-n-select">Show: </label>
-        <select 
-          id="top-n-select" 
-          value={topN} 
-          onChange={(e) => setTopN(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-          className="top-n-select"
-        >
-          <option value="all">All Shards</option>
-          <option value={5}>Top 5</option>
-          <option value={10}>Top 10</option>
-          <option value={20}>Top 20</option>
-          <option value={50}>Top 50</option>
-        </select>
-      </div>
-
       <div className="shard-charts">
         <div className="shard-chart">
+          <div className="shard-controls">
+            <label htmlFor="top-n-select">Show: </label>
+            <select 
+              id="top-n-select" 
+              value={topN} 
+              onChange={(e) => setTopN(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              className="top-n-select"
+            >
+              <option value="all">All Shards</option>
+              <option value={5}>Top 5</option>
+              <option value={10}>Top 10</option>
+              <option value={20}>Top 20</option>
+              <option value={50}>Top 50</option>
+            </select>
+          </div>
           <h3>{topN === 'all' ? 'All Shards' : `Top ${topN} Shards`} by Search Time</h3>
           <div className="chart-container">
             {topSearchShards.map((shard) => (
@@ -112,7 +121,22 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
 
         {hasAggregations && (
           <div className="shard-chart">
-            <h3>{topN === 'all' ? 'All Shards' : `Top ${topN} Shards`} by Aggregation Time</h3>
+            <div className="shard-controls">
+              <label htmlFor="top-n-agg-select">Show: </label>
+              <select 
+                id="top-n-agg-select" 
+                value={topNAgg} 
+                onChange={(e) => setTopNAgg(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                className="top-n-select"
+              >
+                <option value="all">All Shards with Aggregations</option>
+                <option value={5}>Top 5</option>
+                <option value={10}>Top 10</option>
+                <option value={20}>Top 20</option>
+                <option value={50}>Top 50</option>
+              </select>
+            </div>
+            <h3>{topNAgg === 'all' ? 'All Shards with Aggregations' : `Top ${topNAgg} Shards`} by Aggregation Time</h3>
             <div className="chart-container">
               {topAggShards.map((shard) => (
                 <div 
