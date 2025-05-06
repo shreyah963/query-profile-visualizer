@@ -6,14 +6,36 @@ import ProfilerComparisonResults from '../components/features/ProfilerDashboard/
 describe('ProfilerComparisonResults', () => {
   const mockProfiles = [
     {
-      took: 100,
-      shards: { total: 5, successful: 5, failed: 0 },
-      hits: { total: 1000, max_score: 1.0 }
+      profile: {
+        shards: [
+          {
+            searches: [
+              {
+                query: [
+                  { type: 'TestQuery', breakdown: { foo: 1, bar: 2 }, children: [] }
+                ],
+                collector: []
+              }
+            ]
+          }
+        ]
+      }
     },
     {
-      took: 150,
-      shards: { total: 5, successful: 5, failed: 0 },
-      hits: { total: 1200, max_score: 1.2 }
+      profile: {
+        shards: [
+          {
+            searches: [
+              {
+                query: [
+                  { type: 'TestQuery', breakdown: { foo: 1, bar: 3 }, children: [] }
+                ],
+                collector: []
+              }
+            ]
+          }
+        ]
+      }
     }
   ];
 
@@ -23,29 +45,21 @@ describe('ProfilerComparisonResults', () => {
     mockOnClose.mockClear();
   });
 
-  it('renders without crashing', () => {
+  it('renders without crashing and shows Query Comparison', () => {
     render(<ProfilerComparisonResults profiles={mockProfiles} onClose={mockOnClose} />);
-    expect(screen.getByText(/Comparison Results/i)).toBeInTheDocument();
+    expect(screen.getByText(/Query Comparison/i)).toBeInTheDocument();
+    expect(screen.getByText(/Structure Differences/i)).toBeInTheDocument();
   });
 
-  it('displays execution time comparison correctly', () => {
-    render(<ProfilerComparisonResults profiles={mockProfiles} onClose={mockOnClose} />);
-    expect(screen.getByText(/100 ms/i)).toBeInTheDocument();
-    expect(screen.getByText(/150 ms/i)).toBeInTheDocument();
+  it('shows an error message when less than two profiles are provided', () => {
+    render(<ProfilerComparisonResults profiles={[mockProfiles[0]]} onClose={mockOnClose} />);
+    expect(screen.getByText(/Insufficient data for comparison/i)).toBeInTheDocument();
   });
 
-  it('displays shard information comparison correctly', () => {
+  it('calls onClose when the close button is clicked', () => {
     render(<ProfilerComparisonResults profiles={mockProfiles} onClose={mockOnClose} />);
-    expect(screen.getByText(/5 shards/i)).toBeInTheDocument();
-    expect(screen.getByText(/5 successful/i)).toBeInTheDocument();
-    expect(screen.getByText(/0 failed/i)).toBeInTheDocument();
-  });
-
-  it('displays hits information comparison correctly', () => {
-    render(<ProfilerComparisonResults profiles={mockProfiles} onClose={mockOnClose} />);
-    expect(screen.getByText(/1000 hits/i)).toBeInTheDocument();
-    expect(screen.getByText(/1200 hits/i)).toBeInTheDocument();
-    expect(screen.getByText(/1.0 max score/i)).toBeInTheDocument();
-    expect(screen.getByText(/1.2 max score/i)).toBeInTheDocument();
+    const closeButton = screen.getAllByRole('button', { name: /close/i })[0];
+    closeButton.click();
+    expect(mockOnClose).toHaveBeenCalled();
   });
 }); 

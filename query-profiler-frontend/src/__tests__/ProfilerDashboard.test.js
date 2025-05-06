@@ -38,6 +38,17 @@ describe('ProfilerDashboard', () => {
     mockUpdateData.mockClear();
   });
 
+  beforeAll(() => {
+    global.FileReader = class {
+      onload = null;
+      readAsText() {
+        if (this.onload) {
+          this.onload({ target: { result: '{"took": 100}' } });
+        }
+      }
+    };
+  });
+
   it('renders without crashing', () => {
     render(<ProfilerDashboard data={mockData} updateData={mockUpdateData} />);
     expect(screen.getByText(/Query Profiler Dashboard/i)).toBeInTheDocument();
@@ -50,7 +61,11 @@ describe('ProfilerDashboard', () => {
 
   it('calls updateData when a profile is uploaded', () => {
     render(<ProfilerDashboard data={mockData} updateData={mockUpdateData} />);
-    const fileInput = screen.getByLabelText(/Upload File/i);
+    // Click the visible Upload File button
+    const uploadButton = screen.getByText('Upload File');
+    uploadButton.click();
+    // Find the hidden file input by id
+    const fileInput = document.getElementById('profile-upload');
     const file = new File(['{"took": 100}'], 'test.json', { type: 'application/json' });
     fireEvent.change(fileInput, { target: { files: [file] } });
     expect(mockUpdateData).toHaveBeenCalled();

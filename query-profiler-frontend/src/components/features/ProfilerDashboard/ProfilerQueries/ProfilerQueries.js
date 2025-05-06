@@ -423,8 +423,12 @@ const ProfilerQueries = ({
           >
               <div 
                 className={`query-hierarchy-row${selectedProfileId === node.id ? ' selected' : ''}`} 
-                onClick={e => { e.stopPropagation(); setSelectedProfileId(node.id); }}
+                onClick={e => { 
+                  e.stopPropagation(); 
+                  setSelectedProfileId(node.id);
+                }}
                 title={node.queryName}
+                data-testid="query-node"
               >
               {hasChildren && (
                 <span

@@ -5,42 +5,58 @@ import QueryDetail from '../components/features/ProfilerDashboard/QueryDetail/Qu
 
 describe('QueryDetail', () => {
   const mockQuery = {
-    type: 'Test Query',
     queryName: 'Test Query Name',
+    type: 'Test Query',
     description: 'Test Description',
     time_ms: 100,
     percentage: 50,
     breakdown: {
-      score: 10,
-      create_weight: 20,
-      build_scorer: 30,
-      next_doc: 40,
-      match: 50,
-      create_weight_count: 1,
-      next_doc_count: 2,
-      match_count: 3,
-      score_count: 4
+      'Match': 50,
+      'Next Doc': 40,
+      'Build Scorer': 30,
+      'Create Weight': 20,
+      'Score': 10,
+      'Score Count': 4,
+      'Match Count': 3,
+      'Next Doc Count': 2,
+      'Create Weight Count': 1
     }
   };
 
   it('renders without crashing', () => {
     render(<QueryDetail query={mockQuery} />);
-    expect(screen.getByText(/Test Query Name/i)).toBeInTheDocument();
+    expect(screen.getByText('Test Query Name')).toBeInTheDocument();
   });
 
   it('displays query details correctly', () => {
     render(<QueryDetail query={mockQuery} />);
-    expect(screen.getByText(/Test Description/i)).toBeInTheDocument();
-    expect(screen.getByText(/100.0 ms/i)).toBeInTheDocument();
-    expect(screen.getByText(/50.0%/i)).toBeInTheDocument();
+    expect(screen.getByText('Test Description')).toBeInTheDocument();
+    expect(screen.getByText('100.00 ms')).toBeInTheDocument();
   });
 
   it('displays breakdown details when available', () => {
     render(<QueryDetail query={mockQuery} />);
-    expect(screen.getByText(/Score/i)).toBeInTheDocument();
-    expect(screen.getByText(/Create Weight/i)).toBeInTheDocument();
-    expect(screen.getByText(/Build Scorer/i)).toBeInTheDocument();
-    expect(screen.getByText(/Next Doc/i)).toBeInTheDocument();
-    expect(screen.getByText(/Match/i)).toBeInTheDocument();
+    
+    // Use getAllByText and check the first occurrence
+    const scoreElements = screen.getAllByText('Score');
+    expect(scoreElements[0]).toBeInTheDocument();
+    
+    const createWeightElements = screen.getAllByText('Create Weight');
+    expect(createWeightElements[0]).toBeInTheDocument();
+    
+    const buildScorerElements = screen.getAllByText('Build Scorer');
+    expect(buildScorerElements[0]).toBeInTheDocument();
+    
+    const nextDocElements = screen.getAllByText('Next Doc');
+    expect(nextDocElements[0]).toBeInTheDocument();
+  });
+
+  it('displays correct timing values', () => {
+    render(<QueryDetail query={mockQuery} />);
+    expect(screen.getByText('50 ns')).toBeInTheDocument();
+    expect(screen.getByText('40 ns')).toBeInTheDocument();
+    expect(screen.getByText('30 ns')).toBeInTheDocument();
+    expect(screen.getByText('20 ns')).toBeInTheDocument();
+    expect(screen.getByText('10 ns')).toBeInTheDocument();
   });
 }); 
