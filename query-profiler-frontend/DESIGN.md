@@ -13,7 +13,7 @@ The Query Profiler Dashboard is a React-based application for visualizing and co
 ## MainDashboard (Central interface for visualizing profile outputs)
 
 **Purpose:**  
-To allow users to upload a query profile, visualize shard and query performance, and drill down into detailed metrics for each query or aggregation.
+To allow users to upload a query profile, visualize shard and query profile output, and drill down into detailed metrics for each query or aggregation.
 
 **Visual Layout:**
 
