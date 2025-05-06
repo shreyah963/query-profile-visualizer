@@ -68,6 +68,48 @@ To allow users to upload or paste two profiles and view a side-by-side compariso
 
 ---
 
+## Component Interaction
+
+This section describes how the main components interact in both dashboard modes.
+
+### MainDashboard Interaction
+- User uploads a profile output via ProfilerDashboard.
+- ProfilerDashboard updates state and passes data to ShardVisualization and ProfilerQueries.
+- User selects a query node in ProfilerQueries.
+- ProfilerQueries notifies ProfilerDashboard of the selection.
+- ProfilerDashboard passes the selected node to QueryDetail for detailed metrics.
+
+### ComparisonDashboard Interaction
+- User uploads or pastes two profile outputs via ProfilerCompare.
+- ProfilerCompare validates inputs and notifies ComparisonDashboard when both are ready.
+- User clicks 'Compare', triggering ProfilerComparisonResults to display differences.
+
+#### Mermaid Sequence Diagram
+```mermaid
+sequenceDiagram
+    participant User
+    participant ProfilerDashboard
+    participant ShardVisualization
+    participant ProfilerQueries
+    participant QueryDetail
+    participant ProfilerCompare
+    participant ProfilerComparisonResults
+
+    User->>ProfilerDashboard: Upload profile output
+    ProfilerDashboard->>ShardVisualization: Pass profile data
+    ProfilerDashboard->>ProfilerQueries: Pass profile data
+    User->>ProfilerQueries: Select query node
+    ProfilerQueries->>ProfilerDashboard: Notify selection
+    ProfilerDashboard->>QueryDetail: Pass selected node
+
+    User->>ProfilerCompare: Upload/paste two profiles
+    ProfilerCompare->>ComparisonDashboard: Notify valid inputs
+    User->>ProfilerCompare: Click Compare
+    ProfilerCompare->>ProfilerComparisonResults: Show comparison
+```
+
+---
+
 ## Visual/Interaction Notes
 
 - Each block is styled with a dedicated CSS class for clarity and maintainability.
