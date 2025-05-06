@@ -129,14 +129,14 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
                 onChange={(e) => setTopNAgg(e.target.value === 'all' ? 'all' : Number(e.target.value))}
                 className="top-n-select"
               >
-                <option value="all">All Shards with Aggregations</option>
+                <option value="all">All Shards</option>
                 <option value={5}>Top 5</option>
                 <option value={10}>Top 10</option>
                 <option value={20}>Top 20</option>
                 <option value={50}>Top 50</option>
               </select>
             </div>
-            <h3>{topNAgg === 'all' ? 'All Shards with Aggregations' : `Top ${topNAgg} Shards`} by Aggregation Time</h3>
+            <h3>{topNAgg === 'all' ? 'All Shards' : `Top ${topNAgg} Shards`} by Aggregation Time</h3>
             <div className="chart-container">
               {topAggShards.map((shard) => (
                 <div 

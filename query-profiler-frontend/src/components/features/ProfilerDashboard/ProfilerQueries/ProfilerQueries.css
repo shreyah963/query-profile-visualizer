@@ -524,7 +524,6 @@ html, body, #root, .profiler-dashboard {
   border: none;
   outline: none;
   font-size: 1.2rem;
-  font-weight: 500;
   color: #3b4a6b;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -534,7 +533,6 @@ html, body, #root, .profiler-dashboard {
 
 .query-tab.active {
   color: #2563eb;
-  font-weight: 600;
 }
 
 .query-tab.active::after {
