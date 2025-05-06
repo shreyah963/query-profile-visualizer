@@ -1,9 +1,22 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './styles.css';
 import QueryDetail from '../QueryDetail';
+
+// Helper function to format duration with precision
+const formatDuration = (ms) => {
+  if (!ms && ms !== 0) return '0 ms';
+  if (ms < 0.1) {
+    return `${ms.toFixed(4)} ms`; // Extra precision for very small values
+  } else if (ms < 1) {
+    return `${ms.toFixed(3)} ms`; // More precision for small values
+  } else if (ms < 1000) {
+    return `${ms.toFixed(2)} ms`; // Standard precision for normal values
+  }
+  return `${(ms / 1000).toFixed(3)} s`; // Convert to seconds for large values
+};
     
     // Helper function to recursively transform a query and its children
-    const transformQueryWithChildren = (query, index, parentTimeNanos, path = '', queryCounts = {}, allQueries = [], rootTimeNanos = null) => {
+const transformQueryWithChildren = (query, index, parentTimeNanos, path = '', queryCounts = {}, allQueries = [], rootTimeNanos = null) => {
       const nodeId = path ? `${path}-${index}` : `${index}`;
       const formattedBreakdown = {};
       if (query.breakdown) {
@@ -37,42 +50,42 @@ import QueryDetail from '../QueryDetail';
         });
       }
       const thisTimeNanos = query.time_in_nanos || 0;
-      
-      // If rootTimeNanos is not set, this is the root node
-      if (rootTimeNanos == null) rootTimeNanos = thisTimeNanos;
-      
-      // Calculate percentage relative to root
-      const percentage = rootTimeNanos > 0 ? (thisTimeNanos / rootTimeNanos) * 100 : 0;
-      
-      // Handle query name with suffix for root queries
-      let queryName = query.type || 'Unknown Query';
-      if (!path) { // Only for root queries
-        const count = queryCounts[queryName] || 0;
-        if (count > 1) {
-          // Find the current instance number
-          let instanceNumber = 1;
-          for (let i = 0; i < index; i++) {
-            if (allQueries[i]?.type === query.type) {
-              instanceNumber++;
-            }
-          }
-          queryName = `${queryName}${instanceNumber}`;
+  
+  // If rootTimeNanos is not set, this is the root node
+  if (rootTimeNanos == null) rootTimeNanos = thisTimeNanos;
+  
+  // Calculate percentage relative to root
+  const percentage = rootTimeNanos > 0 ? (thisTimeNanos / rootTimeNanos) * 100 : 0;
+  
+  // Handle query name with suffix for root queries
+  let queryName = query.type || 'Unknown Query';
+  if (!path) { // Only for root queries
+    const count = queryCounts[queryName] || 0;
+    if (count > 1) {
+      // Find the current instance number
+      let instanceNumber = 1;
+      for (let i = 0; i < index; i++) {
+        if (allQueries[i]?.type === query.type) {
+          instanceNumber++;
         }
       }
-      
+      queryName = `${queryName}${instanceNumber}`;
+    }
+  }
+  
       const transformedChildren = (query.children || []).map((child, childIndex) => 
-        transformQueryWithChildren(child, childIndex, thisTimeNanos, nodeId, queryCounts, allQueries, rootTimeNanos)
+    transformQueryWithChildren(child, childIndex, thisTimeNanos, nodeId, queryCounts, allQueries, rootTimeNanos)
       );
-      
+  
       return {
         id: `query-${nodeId}`,
-        queryName: queryName,
+    queryName: queryName,
         type: query.type || 'Unknown Query',
         description: query.description || '',
         operation: query.description || query.type,
         totalDuration: thisTimeNanos / 1000000,
         time_ms: thisTimeNanos / 1000000,
-        percentage: !path ? 100 : percentage, // Root queries always show 100%
+    percentage: percentage, // Use actual percentage instead of hardcoding 100% for root
         breakdown: formattedBreakdown,
         rawBreakdown: query.breakdown || {},
         children: transformedChildren
@@ -82,8 +95,8 @@ import QueryDetail from '../QueryDetail';
 // Helper function to recursively process collector children
 const processCollectorChildren = (collector, parentCollectorTimeNanos, index = 0) => {
   const id = collector.name ? `collector-${collector.name.replace(/\s+/g, '-')}-${index}` : `collector-${index}`;
-  const type = 'Collector'; // Always set type to 'Collector' for collector nodes
-  const queryName = collector.name || 'Collector';
+  const type = collector.name || 'Collector'; // Use actual name if available
+  const queryName = collector.name || 'Collector'; // Use actual name if available
   const description = collector.reason || '';
   const thisTimeNanos = collector.time_in_nanos || 0;
   const totalDuration = thisTimeNanos / 1000000;
@@ -198,7 +211,7 @@ const ProfilerQueries = ({
   const [processedQueryData, setProcessedQueryData] = useState([]);
   const [processedAggData, setProcessedAggData] = useState([]);
   const [showHierarchy, setShowHierarchy] = useState('query'); // 'query' or 'agg'
-  const [expandedNodes, setExpandedNodes] = useState({});
+  const [expandedNodes, setExpandedNodes] = useState({}); // Empty by default means all nodes are collapsed
   const [leftPanelWidth, setLeftPanelWidth] = useState(320);
   const [selectedProfileId, setSelectedProfileId] = useState(null);
   const containerRef = useRef(null);
@@ -263,7 +276,7 @@ const ProfilerQueries = ({
           description: 'Query Collectors',
           totalDuration: totalCollectorTime / 1000000,
           time_ms: totalCollectorTime / 1000000,
-          percentage: 100, // Always 100% for the root collectors node
+          percentage: totalQueryTimeNanos > 0 ? (totalCollectorTime / totalQueryTimeNanos) * 100 : 0,
           children: processedCollectors,
           collectorData: processedCollectors,
           breakdown: {},
@@ -327,6 +340,8 @@ const ProfilerQueries = ({
     const { queries, aggs } = processData(data);
     setProcessedQueryData(queries);
     setProcessedAggData(aggs);
+    // Reset expanded nodes when new data is loaded
+    setExpandedNodes({});
   }, [data, processData]);
     
   // Helper to find a node by ID in the tree
@@ -355,11 +370,11 @@ const ProfilerQueries = ({
             return node;
           }
         }
-        return null;
+        return nodes[0]; // If no leaf found, return first node
       };
-      const firstLeaf = findFirstLeaf(dataList[0].children);
-      if (firstLeaf) {
-        setSelectedProfileId(firstLeaf.id);
+      const firstNode = findFirstLeaf(dataList[0].children);
+      if (firstNode) {
+        setSelectedProfileId(firstNode.id);
       }
     }
   }, [showHierarchy, processedQueryData, processedAggData, selectedProfileId]);
@@ -370,7 +385,23 @@ const ProfilerQueries = ({
   };
 
   // Render the hierarchy as a collapsible tree
-  const renderHierarchy = (nodes, depth = 0) => (
+  const renderHierarchy = (nodes, depth = 0) => {
+    // Find max and min time among root nodes for scaling
+    const rootTimes = depth === 0 ? nodes.map(node => node.time_ms || 0) : [];
+    const maxTimeMs = Math.max(...rootTimes);
+    const minTimeMs = Math.min(...rootTimes);
+    
+    // Function to get color based on relative time
+    const getTimeColor = (timeMs) => {
+      if (depth !== 0 || maxTimeMs === minTimeMs) return '#3b82f6cc'; // Default blue if not root or all times are equal
+      
+      const ratio = (timeMs - minTimeMs) / (maxTimeMs - minTimeMs);
+      if (ratio === 0) return '#22c55ecc'; // Green for shortest
+      if (ratio === 1) return '#ef4444cc'; // Red for longest
+      return '#f97316cc'; // Orange for everything else
+    };
+    
+    return (
     <ul
       className="query-hierarchy-list"
       style={{ marginLeft: depth === 0 ? 0 : 16, paddingLeft: 0 }}
@@ -378,9 +409,9 @@ const ProfilerQueries = ({
     >
       {nodes.map((node, idx) => {
         const hasChildren = node.children && node.children.length > 0;
-        const expanded = expandedNodes[node.id] !== false;
-        // Use a composite key for extra safety
+          const expanded = expandedNodes[node.id] === true; // Explicitly check for true
         const nodeKey = node.id ? `${node.id}-${depth}-${idx}` : `node-${depth}-${idx}`;
+          
     return (
           <li
             key={nodeKey}
@@ -390,33 +421,53 @@ const ProfilerQueries = ({
               borderLeft: `3px solid ${getTypeColor(node.type)}`,
             }}
           >
-            <div className={`query-hierarchy-row${selectedProfileId === node.id ? ' selected' : ''}`} onClick={e => { e.stopPropagation(); setSelectedProfileId(node.id); }}>
-              {hasChildren && (
-                <span
-                  className={`tree-chevron${expanded ? ' expanded' : ''}`}
-                  onClick={e => { e.stopPropagation(); toggleExpand(node.id); }}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={expanded ? 'Collapse' : 'Expand'}
-                >
-                  {expanded ? '▾' : '▸'}
-                </span>
-              )}
-              <span className="query-hierarchy-label">
-                <span className="query-type-name">
-                  {node.queryName}
-                </span>
-                <span className="query-hierarchy-percentage">
-                  {node.percentage && node.type !== 'Rewrite' ? `(${node.percentage.toFixed(1)}%)` : ''}
-                </span>
-              </span>
-          </div>
+              <div 
+                className={`query-hierarchy-row${selectedProfileId === node.id ? ' selected' : ''}`} 
+                onClick={e => { e.stopPropagation(); setSelectedProfileId(node.id); }}
+                title={node.queryName}
+              >
+                {hasChildren && (
+                  <span
+                    className={`tree-chevron${expanded ? ' expanded' : ''}`}
+                    onClick={e => { e.stopPropagation(); toggleExpand(node.id); }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={expanded ? 'Collapse' : 'Expand'}
+                  >
+                    {expanded ? '▾' : '▸'}
+                  </span>
+                )}
+                <div className="query-hierarchy-content">
+                  <div className="query-name-container">
+                    <span className="query-type-name">
+                      {node.queryName}
+                    </span>
+                  </div>
+                  {depth === 0 ? (
+                    <div className="query-hierarchy-metrics">
+                      <div 
+                        className="timestamp-block" 
+                        style={{ 
+                          width: maxTimeMs > 0 ? `${Math.min(40, (node.time_ms / maxTimeMs) * 40)}px` : '0px',
+                          background: getTimeColor(node.time_ms)
+                        }}
+                      ></div>
+                      <span className="query-node-time">{formatDuration(node.time_ms)}</span>
+                    </div>
+                  ) : (
+                    <span className="query-hierarchy-percentage">
+                      {node.percentage && node.type !== 'Rewrite' ? `(${node.percentage.toFixed(1)}%)` : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
             {hasChildren && expanded && renderHierarchy(node.children, depth + 1)}
           </li>
         );
       })}
     </ul>
     );
+  };
 
   // Resizer drag logic
   useEffect(() => {
@@ -502,6 +553,11 @@ const ProfilerQueries = ({
               showHierarchy === 'query' ? (processedQueryData[0]?.children || []) : (processedAggData[0]?.children || []),
               selectedProfileId
             )}
+            rootId={
+              showHierarchy === 'query'
+                ? processedQueryData[0]?.id
+                : processedAggData[0]?.id
+            }
             compareQuery={profileToCompare}
             compareMode={compareMode}
           />

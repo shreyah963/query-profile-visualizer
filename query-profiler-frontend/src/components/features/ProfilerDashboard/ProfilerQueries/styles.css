@@ -59,6 +59,8 @@
   display: flex;
   align-items: center;
   padding: 0.25rem;
+  gap: 8px;
+  width: 100%;
 }
 
 .query-hierarchy-row.selected {
@@ -75,8 +77,50 @@
   transform: rotate(90deg);
 }
 
-.query-hierarchy-label {
+.query-hierarchy-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+}
+
+.query-name-container {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.query-type-name {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.query-hierarchy-metrics {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 70px;
+}
+
+.timestamp-block {
+  height: 16px;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 4px;
+  min-width: 4px;
+  max-width: 40px;
+  transition: width 0.3s ease;
+  flex-shrink: 0;
+}
+
+.query-node-time {
+  font-family: monospace;
+  font-size: 13px;
+  color: #4b5563;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .resizer {

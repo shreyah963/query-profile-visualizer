@@ -7,7 +7,7 @@ import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 // Register the language
 SyntaxHighlighter.registerLanguage('json', json);
 
-const QueryDetail = ({ query }) => {
+const QueryDetail = ({ query, rootId }) => {
   const [showRawBreakdown, setShowRawBreakdown] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     breakdown: true,   // Start with breakdown section expanded
@@ -548,8 +548,7 @@ const QueryDetail = ({ query }) => {
                   )}
                   <h5>{queryType === 'Collector' && child.queryName ? child.queryName : queryType}</h5>
                   <div className="query-node-metrics">
-                    <span className="query-node-time">{formatDuration(childTimeMs)}</span>
-                    <span className="query-node-percentage">({safeToFixed(percentage, 1)}%)</span>
+                    <span className="query-node-percentage">({percentage.toFixed(1)}%)</span>
                   </div>
                 </div>
                 {child.description && (
@@ -642,7 +641,8 @@ const QueryDetail = ({ query }) => {
           <span className="metric-label">Total time:</span>
           <span className="metric-value-total">{formatDuration(timeMs)}</span>
         </div>
-        {!isRewrite && (
+        {/* Show percentage for all nodes except the Collectors root node */}
+        {!isRewrite && !isCollector && queryType !== 'Collectors' && query.queryName !== 'Collectors' && (
           <div className="detail-metric">
             <span className="metric-label">Percentage of total execution:</span>
             <span className="metric-value-percentage">{safeToFixed(percentage, 1)}%</span>
@@ -732,12 +732,10 @@ const QueryDetail = ({ query }) => {
                           <div className="query-node-header">
                             <h5>{queryType}</h5>
                             <div className="query-node-metrics">
-                              <span className="query-node-time">{formatDuration(timeMs)}</span>
-                              <span className="query-node-percentage">({safeToFixed(percentage, 1)}%)</span>
+                              <span className="query-node-percentage">(100.0%)</span>
                             </div>
                           </div>
                           <p className="query-node-description">{queryDescription}</p>
-                          {/* Render children with connecting lines */}
                           <div className="query-node-children">
                             {renderQueryHierarchy(children, 0, timeMs)}
                           </div>

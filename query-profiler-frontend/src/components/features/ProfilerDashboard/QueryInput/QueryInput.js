@@ -282,15 +282,15 @@ const QueryInput = ({
                   <div key={i} style={{ height: '1.5em' }}>{i + 1}</div>
                 ))}
               </div>
-              <textarea
-                ref={textareaRef}
-                value={queryInput}
-                onChange={handleQueryInputChange}
-                placeholder="Enter your query in JSON format"
-                rows={10}
+            <textarea
+              ref={textareaRef}
+              value={queryInput}
+              onChange={handleQueryInputChange}
+              placeholder="Enter your query in JSON format"
+              rows={10}
                 className="query-input"
                 style={{ lineHeight: '1.5em' }}
-              />
+            />
             </div>
           </div>
           
