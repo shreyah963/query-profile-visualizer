@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQueryProfiler } from './hooks/useQueryProfiler';
 import MainLayout from './layouts/MainLayout';
-import ProfilerDashboard from './components/features/ProfilerDashboard/Dashboard/ProfilerDashboard';
+import ProfilerDashboard from './components/features/ProfilerDashboard/MainDashboard/ProfilerDashboard';
 import { ERROR_MESSAGES, DEBUG } from './config/constants';
 import './styles/components/App.css';
 
