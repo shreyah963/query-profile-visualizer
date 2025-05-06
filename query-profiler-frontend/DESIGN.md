@@ -1,190 +1,105 @@
-# Query Profiler Dashboard Design
+# Query Profiler Dashboard – Design Document
 
-## Dashboard Layout
+---
 
-### Main Dashboard View
-```
-+------------------------------------------------------------------+
-|  Dashboard Header                                                 |
-|  +----------------------------------------------------------+    |
-|  |  Query Profiler Dashboard                    Search [🔍]  |    |
-|  +----------------------------------------------------------+    |
-|                                                                  |
-|  +------------------+  +-----------------------------------+     |
-|  |                  |  |                                   |     |
-|  |  Profile Actions |  |  Shard Visualization             |     |
-|  |  [Upload/Compare]|  |  (if multiple shards present)    |     |
-|  |                  |  |                                   |     |
-|  +------------------+  +-----------------------------------+     |
-|                                                                  |
-|  +------------------+  +-----------------------------------+     |
-|  |                  |  |                                   |     |
-|  |  Query Hierarchy |  |  Query Detail Panel              |     |
-|  |  (ProfilerQueries)|  |  (QueryDetail)                  |     |
-|  |                  |  |                                   |     |
-|  |  - Searches Tab  |  |  - Operation Breakdown          |     |
-|  |  - Aggregations  |  |  - Timing Metrics               |     |
-|  |    Tab           |  |  - Collector Information        |     |
-|  |                  |  |  - Performance Metrics          |     |
-|  |                  |  |                                   |     |
-|  +------------------+  +-----------------------------------+     |
-|                                                                  |
-+------------------------------------------------------------------+
-```
+## Overview
 
-### Comparison Mode View
-```
-+------------------------------------------------------------------+
-|  Comparison Dashboard Header                                      |
-|  +----------------------------------------------------------+    |
-|  |  Profile Comparison Mode                      Search [🔍]  |    |
-|  +----------------------------------------------------------+    |
-|                                                                  |
-|  +------------------+  +------------------+                      |
-|  |                  |  |                  |                      |
-|  |  Profile 1       |  |  Profile 2       |                      |
-|  |  [Upload/JSON]   |  |  [Upload/JSON]   |                      |
-|  |                  |  |                  |                      |
-|  +------------------+  +------------------+                      |
-|                                                                  |
-|  +----------------------------------------------------------+    |
-|  |  Comparison Results                                      |    |
-|  |  (ProfilerComparisonResults)                            |    |
-|  |                                                          |    |
-|  |  - Execution Time Comparison                            |    |
-|  |  - Query Structure Comparison                           |    |
-|  |  - Result Differences                                   |    |
-|  |                                                          |    |
-|  +----------------------------------------------------------+    |
-|                                                                  |
-+------------------------------------------------------------------+
-```
+The Query Profiler Dashboard is a React-based application for visualizing and comparing Opensearch query profile outputs. It provides two main interfaces:
+- **MainDashboard:** For uploading, exploring, and analyzing a single profile.
+- **ComparisonDashboard:** For comparing two profiles side by side.
 
-## Component Placement and Purpose
+---
 
-### 1. Main Dashboard Components
+## MainDashboard (Central interface for visualizing profile outputs)
 
-#### Header Section
-- **Component**: ProfilerDashboard
-- **Purpose**: 
-  - Title display
-  - Search functionality
-  - Download options
-  - Mode switching
+**Purpose:**  
+To allow users to upload a query profile, visualize shard and query performance, and drill down into detailed metrics for each query or aggregation.
 
-#### Profile Actions Section
-- **Component**: ProfilerDashboard
-- **Purpose**:
-  - Profile upload button
-  - JSON input toggle
-  - Comparison mode switch
-  - Visualize button
+**Visual Layout:**
 
-#### Shard Visualization
-- **Component**: ShardVisualization
-- **Purpose**:
-  - Visual representation of shards
-  - Shard selection interface
-  - Performance overview
+![MainDashboard Layout](<insert-path-or-link-to-your-first-image-here>)
 
-#### Query Hierarchy Panel
-- **Component**: ProfilerQueries
-- **Purpose**:
-  - Tree view of queries
-  - Aggregation hierarchy
-  - Node selection
-  - Expandable/collapsible nodes
+**Block/Class Mapping:**
 
-#### Query Detail Panel
-- **Component**: QueryDetail
-- **Purpose**:
-  - Detailed query information
-  - Performance metrics
-  - Operation breakdown
-  - Collector details
+| UI Block                        | Component/Class             | Purpose/Functionality                                      |
+|----------------------------------|-----------------------------|------------------------------------------------------------|
+| Query Profiler Dashboard         | ProfilerDashboard           | Main container, header, and state management               |
+| Profile Actions [Upload][Compare]| .profile-actions            | Upload profile, compare mode, file validation              |
+| Shard Visualization              | ShardVisualization, .shard-visualization | Visualizes shard performance and selection      |
+| Left Panel (Query Hierarchy)     | ProfilerQueries, .query-hierarchy-panel | Tree view of queries/aggregations             |
+| Right Panel (Query Detail)       | QueryDetail, .query-detail-panel | Operation breakdown, timing, structure, metrics   |
 
-### 2. Comparison Mode Components
+**Key Features:**
+- Upload and validate profile files (JSON)
+- Visualize shard performance
+- Explore query/aggregation hierarchy
+- View detailed metrics for selected queries
 
-#### Profile Input Sections
-- **Component**: ProfilerCompare
-- **Purpose**:
-  - File upload interface
-  - JSON input areas
-  - Validation feedback
-  - Comparison type selection
+---
 
-#### Comparison Results
-- **Component**: ProfilerComparisonResults
-- **Purpose**:
-  - Side-by-side comparison
-  - Difference highlighting
-  - Performance metrics
-  - Structure comparison
+## ComparisonDashboard (Central interface for comparing profile outputs)
 
-## Component Interactions
+**Purpose:**  
+To allow users to upload or paste two profiles and view a side-by-side comparison of their structure and performance.
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Dashboard
-    participant Queries
-    participant Detail
-    participant Compare
+**Visual Layout:**
 
-    User->>Dashboard: Upload Profile
-    Dashboard->>Queries: Update Query Data
-    User->>Queries: Select Query Node
-    Queries->>Detail: Show Query Details
-    User->>Dashboard: Enter Compare Mode
-    Dashboard->>Compare: Show Compare Interface
-    User->>Compare: Upload/Input Profiles
-    Compare->>Dashboard: Show Comparison Results
-```
+![ComparisonDashboard Layout](<insert-path-or-link-to-your-second-image-here>)
 
-## Responsive Design Considerations
+**Block/Class Mapping:**
 
-### Desktop View (>1200px)
-- Full two-panel layout
-- Side-by-side comparison
-- Expanded detail views
+| UI Block                | Component/Class                | Purpose/Functionality                                 |
+|-------------------------|--------------------------------|-------------------------------------------------------|
+| Profile Comparison Mode | ComparisonDashboard            | Main container, header, and state management          |
+| Profile 1 Input         | ProfilerCompare, .profile-input| Upload/paste first profile                            |
+| Profile 2 Input         | ProfilerCompare, .profile-input| Upload/paste second profile                           |
+| Comparison Results      | ProfilerComparisonResults, .comparison-results | Show differences, structure, and metrics |
 
-### Tablet View (768px-1200px)
-- Collapsible panels
-- Stacked comparison view
-- Maintained functionality
+**Key Features:**
+- Upload or paste two profiles for comparison
+- Validate both profiles
+- View differences in query structure and output differences
 
-### Mobile View (<768px)
-- Single panel view
-- Tabbed interface
-- Simplified comparison
+---
 
-## Color Scheme and Visual Hierarchy
+## Component/Class Responsibilities
 
-### Primary Colors
-- Background: #FFFFFF
-- Primary: #2563EB
-- Secondary: #64748B
-- Accent: #3B82F6
+- **ProfilerDashboard:** Orchestrates the main dashboard, manages state, and renders all subcomponents.
+- **ShardVisualization:** Renders shard performance and allows selection.
+- **ProfilerQueries:** Displays the query/aggregation hierarchy as a tree.
+- **QueryDetail:** Shows detailed metrics for the selected query/aggregation.
+- **ProfilerCompare:** Handles input and validation for two profiles in comparison mode.
+- **ProfilerComparisonResults:** Renders the results of the profile comparison.
 
-### Component-Specific Styling
-- Query Hierarchy: Light gray background
-- Detail Panel: White background
-- Comparison View: Alternating backgrounds
-- Interactive Elements: Primary color highlights
+---
 
-## Accessibility Considerations
+## User Flow
 
-### Keyboard Navigation
-- Tab navigation between components
-- Arrow keys for hierarchy navigation
-- Enter/Space for selection
+1. **MainDashboard:**
+   - User uploads a profile output.
+   - Shard visualization and query hierarchy are populated.
+   - User selects a query/aggregation to view details.
 
-### Screen Reader Support
-- ARIA labels for all interactive elements
-- Descriptive alt text for visualizations
-- Clear heading hierarchy
+2. **ComparisonDashboard:**
+   - User uploads or pastes two profiles.
+   - User clicks "Compare".
+   - Side-by-side comparison results are displayed.
 
-### Color Contrast
-- WCAG 2.1 compliant contrast ratios
-- Alternative indicators for color-coded information
-- High contrast mode support 
+---
+
+## Visual/Interaction Notes
+
+- Each block is styled with a dedicated CSS class for clarity and maintainability.
+- The layout is responsive and adapts to different screen sizes.
+- Color coding and clear separation of blocks help users quickly understand the dashboard structure.
+
+---
+
+## Accessibility & Best Practices
+
+- All interactive elements are keyboard accessible.
+- Sufficient color contrast is maintained.
+- Error handling and validation are provided for all user inputs.
+
+---
+
