@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import ProfilerSummary from '../ProfilerSummary';
 import ProfilerQueries from '../ProfilerQueries';
-import QueryInput from '../QueryInput';
 import { ProfilerComparisonResults } from '../ProfilerComparison';
 import ShardVisualization from '../ShardVisualization/ShardVisualization';
 import './ProfilerDashboard.css';

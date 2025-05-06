@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './styles.css';
 import QueryDetail from '../QueryDetail';
-
+    
 // Helper function to format duration with precision
 const formatDuration = (ms) => {
   if (!ms && ms !== 0) return '0 ms';
@@ -105,10 +105,10 @@ const processCollectorChildren = (collector, parentCollectorTimeNanos, index = 0
   const breakdown = collector.breakdown || {};
   const rawBreakdown = collector.breakdown || {};
   const children = (collector.children || []).map((child, idx) => processCollectorChildren(child, thisTimeNanos, idx));
-  return {
+        return {
     id,
     type,
-    queryName,
+      queryName,
     description,
     totalDuration,
     time_ms,
@@ -117,7 +117,7 @@ const processCollectorChildren = (collector, parentCollectorTimeNanos, index = 0
     rawBreakdown,
     children,
   };
-};
+    };
     
     // Helper function to recursively transform an aggregation and its children
     const transformAggregation = (agg, index, totalQueryTimeNanos, path = '') => {
@@ -426,17 +426,17 @@ const ProfilerQueries = ({
                 onClick={e => { e.stopPropagation(); setSelectedProfileId(node.id); }}
                 title={node.queryName}
               >
-                {hasChildren && (
-                  <span
-                    className={`tree-chevron${expanded ? ' expanded' : ''}`}
-                    onClick={e => { e.stopPropagation(); toggleExpand(node.id); }}
-                    tabIndex={0}
-                    role="button"
-                    aria-label={expanded ? 'Collapse' : 'Expand'}
-                  >
-                    {expanded ? '▾' : '▸'}
-                  </span>
-                )}
+              {hasChildren && (
+                <span
+                  className={`tree-chevron${expanded ? ' expanded' : ''}`}
+                  onClick={e => { e.stopPropagation(); toggleExpand(node.id); }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={expanded ? 'Collapse' : 'Expand'}
+                >
+                  {expanded ? '▾' : '▸'}
+                </span>
+              )}
                 <div className="query-hierarchy-content">
                   <div className="query-name-container">
                     <span className="query-type-name">
@@ -460,7 +460,7 @@ const ProfilerQueries = ({
                     </span>
                   )}
                 </div>
-              </div>
+          </div>
             {hasChildren && expanded && renderHierarchy(node.children, depth + 1)}
           </li>
         );

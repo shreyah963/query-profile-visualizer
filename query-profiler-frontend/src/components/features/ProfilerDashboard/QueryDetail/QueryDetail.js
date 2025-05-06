@@ -641,8 +641,8 @@ const QueryDetail = ({ query, rootId }) => {
           <span className="metric-label">Total time:</span>
           <span className="metric-value-total">{formatDuration(timeMs)}</span>
         </div>
-        {/* Show percentage for all nodes except the Collectors root node */}
-        {!isRewrite && !isCollector && queryType !== 'Collectors' && query.queryName !== 'Collectors' && (
+        {/* Show percentage for all nodes except the Collectors root node and root query node */}
+        {!isRewrite && !isCollector && queryType !== 'Collectors' && query.queryName !== 'Collectors' && query.id !== rootId && percentage !== 100 && (
           <div className="detail-metric">
             <span className="metric-label">Percentage of total execution:</span>
             <span className="metric-value-percentage">{safeToFixed(percentage, 1)}%</span>

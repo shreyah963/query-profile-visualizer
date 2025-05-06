@@ -17,18 +17,8 @@ The Query Profiler Frontend is a React-based application that visualizes and ana
      - Shard selection
      - Error handling and loading states
 
-2. **ProfilerSummary**
-   - Displays high-level query execution metrics
-   - Components:
-     - Execution Time visualization with progress bar
-     - Shard information (total, successful, failed)
-     - Hits information (total count, max score)
-   - Features:
-     - Formatted number display
-     - Visual progress indicators
-     - Responsive layout
 
-3. **ProfilerQueries**
+2. **ProfilerQueries**
    - Visualizes the query execution tree
    - Features:
      - Hierarchical query breakdown
@@ -41,20 +31,6 @@ The Query Profiler Frontend is a React-based application that visualizes and ana
      - Breakdown grouping and formatting
      - Time percentage calculations
 
-4. **QueryInput**
-   - Handles query input and execution
-   - Features:
-     - Query template selection
-     - JSON editor
-     - Connection testing
-     - Query execution
-     - Error handling
-   - Templates:
-     - Default match_all
-     - Term query
-     - Boolean query
-     - Aggregation query
-     - Complex query
 
 ### Data Flow
 
