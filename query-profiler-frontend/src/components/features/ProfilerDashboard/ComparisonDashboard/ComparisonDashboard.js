@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronRight, ChevronDown } from 'react-feather';
 import './ComparisonDashboard.css';
-import ProfilerComparisonResults from './ProfilerComparisonResults';
+import ProfilerComparisonResults from '../ProfilerComparison/ProfilerComparisonResults';
 
 const ComparisonDashboard = ({ onExit }) => {
   const [profile1, setProfile1] = useState(null);

@@ -24,8 +24,8 @@ describe('ComparisonDashboard', () => {
 
   it('displays error message when JSON is invalid', () => {
     render(<ComparisonDashboard onExit={mockOnExit} />);
-    const jsonInput = screen.getByPlaceholderText(/Paste profile output in JSON format here/i);
-    fireEvent.change(jsonInput, { target: { value: 'invalid json' } });
+    const jsonInputs = screen.getAllByPlaceholderText(/Paste profile output in JSON format here/i);
+    fireEvent.change(jsonInputs[0], { target: { value: 'invalid json' } });
     const errorMessage = screen.getByText(/Invalid JSON/i);
     expect(errorMessage).toBeInTheDocument();
   });
