@@ -17,17 +17,17 @@ To allow users to upload a query profile, visualize shard and query performance,
 
 **Visual Layout:**
 
-![MainDashboard Layout](<insert-path-or-link-to-your-first-image-here>)
+<img width="449" alt="MainDashboard" src="https://github.com/user-attachments/assets/099c6645-ae96-4d23-adea-9bb7a7123043" />
 
 **Block/Class Mapping:**
 
-| UI Block                        | Component/Class             | Purpose/Functionality                                      |
+| UI Block                        | Component            | Purpose/Functionality                                      |
 |----------------------------------|-----------------------------|------------------------------------------------------------|
 | Query Profiler Dashboard         | ProfilerDashboard           | Main container, header, and state management               |
-| Profile Actions [Upload][Compare]| .profile-actions            | Upload profile, compare mode, file validation              |
-| Shard Visualization              | ShardVisualization, .shard-visualization | Visualizes shard performance and selection      |
-| Left Panel (Query Hierarchy)     | ProfilerQueries, .query-hierarchy-panel | Tree view of queries/aggregations             |
-| Right Panel (Query Detail)       | QueryDetail, .query-detail-panel | Operation breakdown, timing, structure, metrics   |
+| Profile Actions [Upload][Compare]| ProfilerDashboard            | Upload profile, compare mode, file validation              |
+| Shard Visualization              | ShardVisualization,  | Visualizes shard performance and selection      |
+| Left Panel (Query Hierarchy)     | ProfilerQueries, | Tree view of queries/aggregations             |
+| Right Panel (Query Detail)       | QueryDetail | Operation breakdown, timing, structure, metrics   |
 
 **Key Features:**
 - Upload and validate profile files (JSON)
@@ -44,16 +44,16 @@ To allow users to upload or paste two profiles and view a side-by-side compariso
 
 **Visual Layout:**
 
-![ComparisonDashboard Layout](<insert-path-or-link-to-your-second-image-here>)
+<img width="450" alt="ComparisonDashboard" src="https://github.com/user-attachments/assets/04f74379-b618-4668-9cd6-11e5e5250e16" />
 
 **Block/Class Mapping:**
 
-| UI Block                | Component/Class                | Purpose/Functionality                                 |
+| UI Block                | Component                | Purpose/Functionality                                 |
 |-------------------------|--------------------------------|-------------------------------------------------------|
 | Profile Comparison Mode | ComparisonDashboard            | Main container, header, and state management          |
-| Profile 1 Input         | ProfilerCompare, .profile-input| Upload/paste first profile                            |
-| Profile 2 Input         | ProfilerCompare, .profile-input| Upload/paste second profile                           |
-| Comparison Results      | ProfilerComparisonResults, .comparison-results | Show differences, structure, and metrics |
+| Profile 1 Input         | ProfilerCompare | Upload/paste first profile                            |
+| Profile 2 Input         | ProfilerCompare | Upload/paste second profile                           |
+| Comparison Results      | ProfilerComparisonResults | Show differences, structure, and metrics |
 
 **Key Features:**
 - Upload or paste two profiles for comparison
