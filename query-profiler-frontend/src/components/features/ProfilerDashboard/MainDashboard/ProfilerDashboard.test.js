@@ -54,9 +54,9 @@ describe('ProfilerDashboard', () => {
     expect(screen.getByText(/Query Profiler Dashboard/i)).toBeInTheDocument();
   });
 
-  it('displays no data message when data is not available', () => {
+  it('displays input area when data is not available', () => {
     render(<ProfilerDashboard data={null} updateData={mockUpdateData} />);
-    expect(screen.getByText(/No profiling data available/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Paste your profile output in JSON format here/i)).toBeInTheDocument();
   });
 
   it('calls updateData when a profile is uploaded', () => {

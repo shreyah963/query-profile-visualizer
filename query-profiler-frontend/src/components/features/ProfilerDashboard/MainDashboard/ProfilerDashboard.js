@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import ProfilerQueries from '../ProfilerQueries';
 import { ProfilerComparisonResults } from '../ProfilerComparison';
 import ShardVisualization from '../ShardVisualization/ShardVisualization';
-import './ProfilerDashboard.css';
 
 const ProfilerDashboard = ({ data, updateData }) => {
   const [selectedProfile, setSelectedProfile] = useState(null);
@@ -14,13 +13,9 @@ const ProfilerDashboard = ({ data, updateData }) => {
   const [error, setError] = useState(null);
   const [jsonInput1, setJsonInput1] = useState('');
   const [jsonInput2, setJsonInput2] = useState('');
-  const [showJsonInput, setShowJsonInput] = useState(false);
+  const [showJsonInput, setShowJsonInput] = useState(true);
   const [selectedShardIndex, setSelectedShardIndex] = useState(0);
   
-  if (!data && !showDualQueryInput) {
-    return <div className="no-data">No profiling data available</div>;
-  }
-
   // Helper to build dashboard data from uploaded/pasted profile
   const buildDashboardData = (raw) => {
     if (!raw) {
@@ -263,7 +258,7 @@ const ProfilerDashboard = ({ data, updateData }) => {
               className="visualize-btn"
               onClick={() => setShowJsonInput(!showJsonInput)}
             >
-              Visualize Profile
+              New Profile
             </button>
             <input
               type="file"
@@ -309,56 +304,61 @@ const ProfilerDashboard = ({ data, updateData }) => {
         )}
       </div>
 
-      {data && data.profileData && data.profileData.shards && data.profileData.shards.length > 1 && (
-        <ShardVisualization 
-          profileData={data.profileData}
-          onShardSelect={handleShardSelect}
-        />
-      )}
+      {/* Only show dashboard actions if no profile data is loaded */}
+      {(!data || !data.profileData || !data.profileData.shards || data.profileData.shards.length === 0) ? null : (
+        <>
+          {data && data.profileData && data.profileData.shards && data.profileData.shards.length > 1 && (
+            <ShardVisualization 
+              profileData={data.profileData}
+              onShardSelect={handleShardSelect}
+            />
+          )}
 
-      {data && data.profileData && data.profileData.shards && data.profileData.shards.length > 0 && (
-        <div className="shard-selector">
-          <label htmlFor="shard-select">Select Shard: </label>
-          <select
-            id="shard-select"
-            value={selectedShardIndex}
-            onChange={handleShardChange}
-            className="shard-select"
-          >
-            {data.profileData.shards.map((shard, index) => (
-              <option key={shard.id || index} value={index}>
-                Shard {index + 1}: {shard.id || `[${index}]`}
-              </option>
-            ))}
-          </select>
-          <span className="shard-info">
-            {data.profileData.shards.length} shard{data.profileData.shards.length !== 1 ? 's' : ''} available
-          </span>
-        </div>
-      )}
+          {data && data.profileData && data.profileData.shards && data.profileData.shards.length > 0 && (
+            <div className="shard-selector">
+              <label htmlFor="shard-select">Select Shard: </label>
+              <select
+                id="shard-select"
+                value={selectedShardIndex}
+                onChange={handleShardChange}
+                className="shard-select"
+              >
+                {data.profileData.shards.map((shard, index) => (
+                  <option key={shard.id || index} value={index}>
+                    Shard {index + 1}: {shard.id || `[${index}]`}
+                  </option>
+                ))}
+              </select>
+              <span className="shard-info">
+                {data.profileData.shards.length} shard{data.profileData.shards.length !== 1 ? 's' : ''} available
+              </span>
+            </div>
+          )}
 
-      {data && data.profileData && (
-        <ProfilerQueries 
-          data={{
-            ...data,
-            profileData: {
-              ...data.profileData,
-              // Only pass the selected shard's data for visualization
-              shards: [data.profileData.shards[selectedShardIndex]]
-            }
-          }}
-          selectedProfile={selectedProfile}
-          setSelectedProfile={setSelectedProfile}
-          setProfileToCompare={showComparisonResults ? setProfileToCompare : () => {}}
-          profileToCompare={showComparisonResults ? profileToCompare : null}
-        />
-      )}
+          {data && data.profileData && (
+            <ProfilerQueries 
+              data={{
+                ...data,
+                profileData: {
+                  ...data.profileData,
+                  // Only pass the selected shard's data for visualization
+                  shards: [data.profileData.shards[selectedShardIndex]]
+                }
+              }}
+              selectedProfile={selectedProfile}
+              setSelectedProfile={setSelectedProfile}
+              setProfileToCompare={showComparisonResults ? setProfileToCompare : () => {}}
+              profileToCompare={showComparisonResults ? profileToCompare : null}
+            />
+          )}
 
-      {showComparisonResults && selectedProfile && profileToCompare && (
-        <ProfilerComparisonResults 
-          profiles={[selectedProfile, profileToCompare]} 
-          onClose={() => setShowComparisonResults(false)}
-        />
+          {showComparisonResults && selectedProfile && profileToCompare && (
+            <ProfilerComparisonResults 
+              profiles={[selectedProfile, profileToCompare]} 
+              onClose={() => setShowComparisonResults(false)}
+            />
+          )}
+        </>
       )}
       </div>
     </div>

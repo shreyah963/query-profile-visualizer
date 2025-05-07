@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import './QueryDetail.css';
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json';
 
@@ -189,26 +188,28 @@ const QueryDetail = ({ query, rootId }) => {
             
             return (
               <div key={key} className="breakdown-item">
-                <div className="breakdown-label">
-                  <span>
-                    {formattedKey.operation}
-                    {formattedKey.queryTypes && (
-                      <span className="query-type"> ({formattedKey.queryTypes})</span>
-                    )}
-                  </span>
-                  <span className="breakdown-time" style={{ color }}>
-                    {formatNumber(value)} ns
-                  </span>
+                <div className="breakdown-label-bar-group">
+                  <div className="breakdown-label">
+                    <span>
+                      {formattedKey.operation}
+                      {formattedKey.queryTypes && (
+                        <span className="query-type"> ({formattedKey.queryTypes})</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="breakdown-bar-container">
+                    <div
+                      className="breakdown-bar"
+                      style={{
+                        width: `${Math.min(percent, 100)}%`,
+                        backgroundColor: color,
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="breakdown-bar-container">
-                  <div
-                    className="breakdown-bar"
-                    style={{
-                      width: `${Math.min(percent, 100)}%`,
-                      backgroundColor: color,
-                    }}
-                  />
-                </div>
+                <span className="breakdown-time" style={{ color }}>
+                  {formatNumber(value)} ns
+                </span>
               </div>
             );
           })}
@@ -242,26 +243,28 @@ const QueryDetail = ({ query, rootId }) => {
             
             return (
               <div key={key} className="breakdown-item">
-                <div className="breakdown-label">
-                  <span>
-                    {formattedKey.operation}
-                    {formattedKey.queryTypes && (
-                      <span className="query-type"> ({formattedKey.queryTypes})</span>
-                    )}
-                  </span>
-                  <span className="breakdown-time" style={{ color }}>
-                    {formatNumber(value)} ns
-                  </span>
+                <div className="breakdown-label-bar-group">
+                  <div className="breakdown-label">
+                    <span>
+                      {formattedKey.operation}
+                      {formattedKey.queryTypes && (
+                        <span className="query-type"> ({formattedKey.queryTypes})</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="breakdown-bar-container">
+                    <div
+                      className="breakdown-bar"
+                      style={{
+                        width: `${Math.min(percent, 100)}%`,
+                        backgroundColor: color,
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="breakdown-bar-container">
-                  <div
-                    className="breakdown-bar"
-                    style={{
-                      width: `${Math.min(percent, 100)}%`,
-                      backgroundColor: color,
-                    }}
-                  />
-                </div>
+                <span className="breakdown-time" style={{ color }}>
+                  {formatNumber(value)} ns
+                </span>
               </div>
             );
           })}
@@ -904,9 +907,6 @@ const QueryDetail = ({ query, rootId }) => {
             
             {expandedSections.aggTypeBreakdown && (
               <div className="section-content">
-                <div className="section-intro">
-                  This shows the detailed timing for each phase of the {query.queryName || query.type} aggregation.
-                </div>
                 <div className="breakdown-controls">
                   <button 
                     className={`breakdown-toggle ${!showRawBreakdown ? 'active' : ''}`}

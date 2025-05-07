@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './ProfilerComparisonResults.css';
 
 const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
   const [comparisonData, setComparisonData] = useState(null);
@@ -46,182 +45,6 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     }
   }, [profiles]);
   
-  // Helper function to extract fields and their order
-  const extractFieldsWithOrder = (obj) => {
-    if (!obj || typeof obj !== 'object') return [];
-    
-    const fields = [];
-    const keys = Object.keys(obj);
-    
-    keys.forEach((key, index) => {
-      // For breakdown objects, we want to track the exact position
-      if (key === 'breakdown') {
-        const breakdownKeys = Object.keys(obj[key]);
-        breakdownKeys.forEach((bKey, bIndex) => {
-          fields.push({
-            field: `${key}.${bKey}`,
-            order: bIndex,
-            parentField: key
-          });
-        });
-      } else {
-        fields.push({
-          field: key,
-          order: index,
-          parentField: null
-        });
-        
-        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key]) && key !== 'breakdown') {
-          const nestedFields = extractFieldsWithOrder(obj[key]).map(nested => ({
-            field: `${key}.${nested.field}`,
-            order: nested.order,
-            parentField: key
-          }));
-          fields.push(...nestedFields);
-        }
-      }
-    });
-    
-    return fields;
-  };
-
-  // Helper function to compare two objects structurally
-  const compareStructures = (obj1, obj2, queryPath = '') => {
-    const differences = [];
-    
-    // Get all fields with their order from both objects
-    const fields1 = extractFieldsWithOrder(obj1);
-    const fields2 = extractFieldsWithOrder(obj2);
-    
-    // Create maps of fields to their orders
-    const fieldMap1 = new Map(fields1.map(f => [f.field, { order: f.order, parentField: f.parentField }]));
-    const fieldMap2 = new Map(fields2.map(f => [f.field, { order: f.order, parentField: f.parentField }]));
-    
-    // Find fields present in obj1 but not in obj2
-    fields1.forEach(({ field }) => {
-      if (!fieldMap2.has(field)) {
-        const path = queryPath ? `${queryPath} → ${field}` : field;
-        differences.push({
-          type: 'missing',
-          field,
-          path
-        });
-      }
-    });
-    
-    // Find fields present in obj2 but not in obj1
-    fields2.forEach(({ field }) => {
-      if (!fieldMap1.has(field)) {
-        const path = queryPath ? `${queryPath} → ${field}` : field;
-        differences.push({
-          type: 'added',
-          field,
-          path
-        });
-      }
-    });
-    
-    // Find fields that exist in both but have different orders
-    // Group fields by their parent field to compare order within the same context
-    const fieldsByParent = new Map();
-    
-    fields1.forEach(f => {
-      if (!fieldsByParent.has(f.parentField)) {
-        fieldsByParent.set(f.parentField, { fields1: [], fields2: [] });
-      }
-      fieldsByParent.get(f.parentField).fields1.push(f);
-    });
-    
-    fields2.forEach(f => {
-      if (!fieldsByParent.has(f.parentField)) {
-        fieldsByParent.set(f.parentField, { fields1: [], fields2: [] });
-      }
-      fieldsByParent.get(f.parentField).fields2.push(f);
-    });
-    
-    fieldsByParent.forEach((value, parentField) => {
-      const { fields1: parentFields1, fields2: parentFields2 } = value;
-      
-      // Compare order only for fields that exist in both profiles
-      const commonFields = parentFields1.filter(f1 => 
-        parentFields2.some(f2 => f2.field === f1.field)
-      );
-      
-      commonFields.forEach(f1 => {
-        const f2 = parentFields2.find(f => f.field === f1.field);
-        if (f1.order !== f2.order) {
-          const path = queryPath ? `${queryPath} → ${f1.field}` : f1.field;
-          differences.push({
-            type: 'reorder',
-            field: f1.field,
-            path,
-            oldPosition: f1.order + 1,
-            newPosition: f2.order + 1
-            });
-          }
-        });
-    });
-    
-    return differences;
-  };
-
-  // Compare query hierarchies
-  const compareQueryHierarchies = (h1, h2) => {
-    const differences = [];
-    
-    // Compare root queries
-    if (h1.length !== h2.length) {
-      differences.push(`Different number of root queries: ${h1.length} vs ${h2.length}`);
-    }
-    
-    // Compare each query and its children
-    const maxLength = Math.max(h1.length, h2.length);
-    for (let i = 0; i < maxLength; i++) {
-      const q1 = h1[i];
-      const q2 = h2[i];
-      
-      if (!q1 || !q2) {
-        differences.push(`Query ${i + 1} is missing in ${!q1 ? 'Profile 1' : 'Profile 2'}`);
-        continue;
-      }
-      
-      const queryPath = `Query ${i + 1} (${q1.type})`;
-      
-      // Compare query fields
-      const fieldDifferences = compareStructures(q1, q2, queryPath);
-      if (fieldDifferences.length > 0) {
-        differences.push(...fieldDifferences);
-      }
-      
-      // Compare children
-      if (q1.children.length !== q2.children.length) {
-        differences.push(`${queryPath} has different number of children: ${q1.children.length} vs ${q2.children.length}`);
-      }
-      
-      // Compare each child
-      const maxChildren = Math.max(q1.children.length, q2.children.length);
-      for (let j = 0; j < maxChildren; j++) {
-        const child1 = q1.children[j];
-        const child2 = q2.children[j];
-        
-        if (!child1 || !child2) {
-          differences.push(`${queryPath} child ${j + 1} is missing in ${!child1 ? 'Profile 1' : 'Profile 2'}`);
-          continue;
-        }
-        
-        const childPath = `${queryPath} → Child ${j + 1} (${child1.type})`;
-        
-        // Compare child fields
-        const childFieldDifferences = compareStructures(child1, child2, childPath);
-        if (childFieldDifferences.length > 0) {
-          differences.push(...childFieldDifferences);
-        }
-      }
-    }
-    
-    return differences;
-  };
-
   const calculateComparisonData = (profile1, profile2) => {
     console.log('Calculating comparison data for profiles:', profile1, profile2);
 
@@ -479,9 +302,9 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
       const hasChildren = children1.length > 0 || children2.length > 0;
 
       const getDiffClass = (value1, value2, diffValue, diffPercentage) => {
-        if (value1 === undefined || value2 === undefined) return 'high-difference';
-        if (Math.abs(diffPercentage) > 50) return 'high-difference';
-        return 'low-difference';
+        if (value1 === undefined || value2 === undefined) return 'missing-field';
+        if (diffValue === 0) return 'identical';
+        return 'different';
       };
 
       return (
@@ -505,17 +328,13 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
                 <div className="profile-comparison">
                   <div className="profile-column">
                     <div className="profile-header">{profiles[0]?.name || 'Profile 1'}</div>
-                    <span className="query-node-time">{formatTime(time1)}</span>
                   </div>
                   <div className="profile-column">
                     <div className="profile-header">{profiles[1]?.name || 'Profile 2'}</div>
-                    <span className="query-node-time">{formatTime(time2)}</span>
                   </div>
                   <div className="profile-column">
                     <div className="profile-header">Difference</div>
-                    <span className={`query-node-time ${getDiffClass(time1, time2, diff, percentage)}`}>
-                      {diff !== 0 ? `${diff > 0 ? '+' : ''}${formatTime(Math.abs(diff))} (${percentageFormatted}%)` : 'Identical'}
-                    </span>
+                    <span className={`query-node-time ${getDiffClass(time1, time2, diff, percentage)}`}>{diff !== 0 ? `${diff > 0 ? '+' : ''}${formatTime(Math.abs(diff))} (${percentageFormatted}%)` : 'Identical'}</span>
                   </div>
                 </div>
               </div>
@@ -525,9 +344,23 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
             )}
             {isExpanded && (
               <>
+                {type === 'collector' && (
+                  <div className="collector-time-row" style={{ width: '100%' }}>
+                    <table className="comparison-table" style={{ marginBottom: 0 }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ textAlign: 'left', fontWeight: 600 }}>Collector Time</td>
+                          <td className="metric-value">{formatTime(time1)}</td>
+                          <td className="metric-value">{formatTime(time2)}</td>
+                          <td className={`metric-diff ${getDiffClass(time1, time2, diff, percentage)}`}>{diff !== 0 ? `${diff > 0 ? '+' : ''}${formatTime(Math.abs(diff))} (${percentageFormatted}%)` : 'Identical'}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
                 {allMetrics.size > 0 && (
                   <div className="query-node-breakdown">
-                    <table className="breakdown-table">
+                    <table className="comparison-table">
                       <tbody>
                         {Array.from(allMetrics).sort().map(metric => {
                           const value1 = breakdown1[metric];

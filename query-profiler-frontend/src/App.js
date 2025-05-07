@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useQueryProfiler } from './hooks/useQueryProfiler';
+import React, { useState } from 'react';
 import MainLayout from './layouts/MainLayout';
 import ProfilerDashboard from './components/features/ProfilerDashboard/MainDashboard/ProfilerDashboard';
 import { ERROR_MESSAGES, DEBUG } from './config/constants';
-import './styles/components/App.css';
+import './App.css'
 
 // Error boundary component to catch rendering errors
 class ErrorBoundary extends React.Component {
@@ -41,24 +40,16 @@ class ErrorBoundary extends React.Component {
 }
 
 const App = () => {
-  const { data: initialData, isLoading, error } = useQueryProfiler();
   const [data, setData] = useState(null);
   const [debugMode, setDebugMode] = useState(DEBUG.ENABLED);
   
-  // Set initial data when it's loaded
-  useEffect(() => {
-    if (initialData) {
-      setData(initialData);
-    }
-  }, [initialData]);
-  
   // Enable console debugging
-  useEffect(() => {
+  React.useEffect(() => {
     if (debugMode) {
-    window.debugProfiler = {
-      getData: () => data,
-      toggleDebug: () => setDebugMode(prev => !prev)
-    };
+      window.debugProfiler = {
+        getData: () => data,
+        toggleDebug: () => setDebugMode(prev => !prev)
+      };
       console.log(DEBUG.CONSOLE.DATA, {
         executionTime: data?.executionTime || data?.took,
         hitCount: data?.hitsInfo?.total || (data?.hits?.total?.value || data?.hits?.total || 0),
@@ -73,26 +64,6 @@ const App = () => {
     console.log(DEBUG.CONSOLE.DATA, newData);
     setData(newData);
   };
-
-  if (isLoading) {
-    return <MainLayout>{ERROR_MESSAGES.LOADING}</MainLayout>;
-  }
-
-  if (error && !data) {
-    return (
-      <MainLayout>
-      <div className="error">
-          <h2>{ERROR_MESSAGES.ERROR}</h2>
-        <p>{error.message}</p>
-          <p>{ERROR_MESSAGES.CONNECTION_ERROR}</p>
-      </div>
-      </MainLayout>
-    );
-  }
-
-  if (!data) {
-    return <MainLayout>{ERROR_MESSAGES.NO_DATA}</MainLayout>;
-  }
 
   return (
     <MainLayout>

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ChevronRight, ChevronDown } from 'react-feather';
-import './ComparisonDashboard.css';
 import ProfilerComparisonResults from '../ProfilerComparison/ProfilerComparisonResults';
 
 const ComparisonDashboard = ({ onExit }) => {

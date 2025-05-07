@@ -7,37 +7,6 @@ export const API = {
   TIMEOUT: 10000,
 };
 
-export const QUERY_TEMPLATES = {
-  DEFAULT: {
-    query: {
-      match_all: {},
-    },
-  },
-  TERM_QUERY: {
-    query: {
-      term: {
-        'process.name': 'cron',
-      },
-    },
-  },
-  BOOL_QUERY: {
-    query: {
-      bool: {
-        must: [
-          { match: { 'process.name': 'cron' } },
-        ],
-        should: [
-          { match: { tags: 'preserve_original_event' } },
-          { match: { 'input.type': 'aws-cloudwatch' } },
-        ],
-        minimum_should_match: 1,
-      },
-    },
-    sort: [
-      { '@timestamp': { order: 'desc' } },
-    ],
-  },
-};
 
 export const BREAKDOWN_GROUPS = {
   BUILD_SCORER: ['build_scorer', 'build_scorer_count'],

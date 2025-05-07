@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import './ShardVisualization.css';
 
 const ShardVisualization = ({ profileData, onShardSelect }) => {
   const [topN, setTopN] = useState(5);

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import './styles.css';
 import QueryDetail from '../QueryDetail';
     
 // Helper function to format duration with precision
@@ -439,9 +438,8 @@ const ProfilerQueries = ({
                     ) : (
                       <>
                         <div className="timestamp-block" style={{ width: '0px', background: 'transparent' }}></div>
-                        <span className="query-node-time">{formatDuration(node.time_ms)}</span>
                         <span className="query-hierarchy-percentage" style={{ minWidth: '56px', display: 'inline-block', textAlign: 'right' }}>
-                          {node.percentage && node.type !== 'Rewrite' ? `(${node.percentage.toFixed(1)}%)` : ''}
+                          {node.percentage && node.type !== 'Rewrite' ? `${node.percentage.toFixed(1)}%` : ''}
                         </span>
                       </>
                     )}

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import './ProfilerCompare.css';
 
 const ProfilerCompare = ({ onClose, profiles, onCompare }) => {
   const [profile1, setProfile1] = useState(null);
