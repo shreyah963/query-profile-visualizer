@@ -871,15 +871,6 @@ span.query-type {
   background-color: #e9ecef;
 }
 
-.query-node {
-  margin-left: 24px;
-  background-color: white;
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  width: calc(100% - 24px);
-  min-width: 300px;
-}
 
 .query-node-header {
   display: flex;
@@ -888,43 +879,19 @@ span.query-type {
   cursor: pointer;
   border-bottom: 1px solid #e9ecef;
   transition: background-color 0.2s ease;
+  background-color: #dceafa !important;
+  color: #222 !important;
 }
 
 /* Type-specific header styling - using same colors as borders with 10% opacity */
-.query-node[data-type="TermQuery"] > .query-node-header {
-  background-color: rgba(5, 150, 105, 0.1);
-  color: #059669;
+.query-node > .query-node-header {
+  background-color: #dceafa !important;
+  color: #222 !important;
 }
 
-.query-node[data-type="BooleanQuery"] > .query-node-header {
-  background-color: rgba(124, 58, 237, 0.1);
-  color: #7839e6;
-}
-
-.query-node[data-type="ConstantScoreQuery"] > .query-node-header {
-  background-color: rgba(245, 158, 66, 0.1);
-  color: #f59e42;
-}
-
-.query-node[data-type="DisjunctionMaxQuery"] > .query-node-header {
-  background-color: rgba(14, 165, 233, 0.1);
-  color: #0ea5e9;
-}
-
-.query-node[data-type="MatchAllDocsQuery"] > .query-node-header {
-  background-color: rgba(251, 191, 36, 0.1);
-  color: #fbbf24;
-}
-
-.query-node[data-type="Aggregations"] > .query-node-header {
-  background-color: rgba(14, 165, 233, 0.1);
-  color: #0ea5e9;
-}
-
-/* Default header styling for unknown types */
-.query-node:not([data-type]) > .query-node-header {
-  background-color: rgba(107, 114, 128, 0.1);
-  color: #6b7280;
+/* Type-specific styling for left borders */
+.query-node {
+  border-left: 3px solid #b1d0f4 !important;
 }
 
 /* Hover effect for all headers */
@@ -985,8 +952,10 @@ span.query-type {
 }
 
 .query-node-percentage {
-  color: #6c757d;
-  font-size: 0.85em;
+  color: #222 !important;
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
 }
 
 .query-node-description {
@@ -1029,31 +998,6 @@ span.query-type {
 
 .level-0 > .query-hierarchy-item > .query-node-connector:before {
   display: none;
-}
-
-/* Type-specific styling for left borders */
-.query-node[data-type="TermQuery"] {
-  border-left: 3px solid #059669;
-}
-
-.query-node[data-type="BooleanQuery"] {
-  border-left: 3px solid #ad83f6 !important;
-}
-
-.query-node[data-type="ConstantScoreQuery"] {
-  border-left: 3px solid #f59e42;
-}
-
-.query-node[data-type="DisjunctionMaxQuery"] {
-  border-left: 3px solid #0ea5e9;
-}
-
-.query-node[data-type="MatchAllDocsQuery"] {
-  border-left: 3px solid #fbbf24;
-}
-
-.query-node[data-type="Aggregations"] {
-  border-left: 3px solid #0ea5e9;
 }
 
 /* Aggregation debug info styles */
@@ -1141,20 +1085,13 @@ span.query-type {
 .query-input .null { color: #64748b; }
 .query-input .key { color: #f59e42; }
 
-.query-node[data-type="Collectors"] {
-  border-left: 3px solid #f2959b !important;
-}
-
-.query-node[data-type="Collectors"] > .query-node-header {
-  background-color: rgba(242, 149, 155, 0.1);
-  color: #f2959b;
-}
-
+.query-node[data-type="Collectors"],
 .query-node[data-type="Collector"] {
-  border-left: 3px solid #a4b0fe !important;
+  border-left: 3px solid #b1d0f4  !important;
 }
 
+.query-node[data-type="Collectors"] > .query-node-header,
 .query-node[data-type="Collector"] > .query-node-header {
-  background-color: rgba(164, 176, 254, 0.1);
-  color: #a4b0fe;
+  background-color: #dceafa !important;
+  color: #222 !important;
 } 

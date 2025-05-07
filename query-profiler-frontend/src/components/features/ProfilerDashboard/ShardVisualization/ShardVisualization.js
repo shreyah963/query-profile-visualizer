@@ -109,7 +109,7 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
                     className="bar" 
                     style={{ 
                       width: `${(shard.searchTime / maxSearchTime) * 100}%`,
-                      backgroundColor: '#4a6da7'
+                      backgroundColor: '#285badcc'
                     }}
                   />
                   <div className="bar-value">{shard.searchTime.toFixed(2)}ms</div>
@@ -151,7 +151,7 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
                       className="bar" 
                       style={{ 
                         width: `${(shard.aggTime / maxAggTime) * 100}%`,
-                        backgroundColor: '#4a6da7'
+                        backgroundColor: '#285badcc'
                       }}
                     />
                     <div className="bar-value">{shard.aggTime.toFixed(2)}ms</div>

@@ -388,17 +388,14 @@ const ProfilerQueries = ({
   const renderHierarchy = (nodes, depth = 0) => {
     // Find max and min time among root nodes for scaling
     const rootTimes = depth === 0 ? nodes.map(node => node.time_ms || 0) : [];
+    const totalRootTime = depth === 0 ? rootTimes.reduce((a, b) => a + b, 0) : 0;
     const maxTimeMs = Math.max(...rootTimes);
     const minTimeMs = Math.min(...rootTimes);
     
     // Function to get color based on relative time
     const getTimeColor = (timeMs) => {
-      if (depth !== 0 || maxTimeMs === minTimeMs) return '#3b82f6cc'; // Default blue if not root or all times are equal
-      
-      const ratio = (timeMs - minTimeMs) / (maxTimeMs - minTimeMs);
-      if (ratio === 0) return '#22c55ecc'; // Green for shortest
-      if (ratio === 1) return '#ef4444cc'; // Red for longest
-      return '#f97316cc'; // Orange for everything else
+      // Always use blue for root nodes
+      return '#3b82f6cc';
     };
     
     return (
@@ -452,7 +449,7 @@ const ProfilerQueries = ({
                       <div 
                         className="timestamp-block" 
                         style={{ 
-                          width: maxTimeMs > 0 ? `${Math.min(40, (node.time_ms / maxTimeMs) * 40)}px` : '0px',
+                          width: totalRootTime > 0 ? `${Math.max(4, (node.time_ms / totalRootTime) * 120)}px` : '0px',
                           background: getTimeColor(node.time_ms)
                         }}
                       ></div>
