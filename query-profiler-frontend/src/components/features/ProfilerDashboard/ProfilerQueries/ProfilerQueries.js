@@ -169,24 +169,6 @@ const processCollectorChildren = (collector, parentCollectorTimeNanos, index = 0
       };
     };
     
-// Helper to get type class and icon
-const getTypeClassAndIcon = (type) => {
-  switch (type) {
-    case 'Query': return { className: 'type-Query', icon: '🔍' };
-    case 'BooleanQuery': return { className: 'type-BooleanQuery', icon: '⎇' };
-    case 'TermQuery': return { className: 'type-TermQuery', icon: '🔤' };
-    case 'ConstantScoreQuery': return { className: 'type-ConstantScoreQuery', icon: '⚖️' };
-    case 'Aggregations':
-    case 'agg-group': return { className: 'type-Aggregations', icon: '📊' };
-    case 'RangeQuery': return { className: 'type-RangeQuery', icon: '↔️' };
-    case 'MatchAllDocsQuery': return { className: 'type-MatchAllDocsQuery', icon: '🌐' };
-    case 'Avg':
-    case 'Sum':
-    case 'Count': return { className: 'type-Avg', icon: '∑' };
-    default: return { className: '', icon: '•' };
-  }
-        };
-        
 // Dynamic color map for query types (use pastel colors for all types)
 const typeColorMap = {
   ConstantScoreQuery: '#ffe0b2', // pastel orange
@@ -389,8 +371,6 @@ const ProfilerQueries = ({
     // Find max and min time among root nodes for scaling
     const rootTimes = depth === 0 ? nodes.map(node => node.time_ms || 0) : [];
     const totalRootTime = depth === 0 ? rootTimes.reduce((a, b) => a + b, 0) : 0;
-    const maxTimeMs = Math.max(...rootTimes);
-    const minTimeMs = Math.min(...rootTimes);
     
     // Function to get color based on relative time
     const getTimeColor = (timeMs) => {
@@ -444,22 +424,28 @@ const ProfilerQueries = ({
                       {node.queryName}
                     </span>
                   </div>
-                  {depth === 0 ? (
-                    <div className="query-hierarchy-metrics">
-                      <div 
-                        className="timestamp-block" 
-                        style={{ 
-                          width: totalRootTime > 0 ? `${Math.max(4, (node.time_ms / totalRootTime) * 120)}px` : '0px',
-                          background: getTimeColor(node.time_ms)
-                        }}
-                      ></div>
-                      <span className="query-node-time">{formatDuration(node.time_ms)}</span>
-                    </div>
-                  ) : (
-                    <span className="query-hierarchy-percentage">
-                      {node.percentage && node.type !== 'Rewrite' ? `(${node.percentage.toFixed(1)}%)` : ''}
-                    </span>
-                  )}
+                  <div className="query-hierarchy-metrics">
+                    {depth === 0 ? (
+                      <>
+                        <div 
+                          className="timestamp-block" 
+                          style={{ 
+                            width: totalRootTime > 0 ? `${Math.max(4, (node.time_ms / totalRootTime) * 120)}px` : '0px',
+                            background: getTimeColor(node.time_ms)
+                          }}
+                        ></div>
+                        <span className="query-node-time">{formatDuration(node.time_ms)}</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="timestamp-block" style={{ width: '0px', background: 'transparent' }}></div>
+                        <span className="query-node-time">{formatDuration(node.time_ms)}</span>
+                        <span className="query-hierarchy-percentage" style={{ minWidth: '56px', display: 'inline-block', textAlign: 'right' }}>
+                          {node.percentage && node.type !== 'Rewrite' ? `(${node.percentage.toFixed(1)}%)` : ''}
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
           </div>
             {hasChildren && expanded && renderHierarchy(node.children, depth + 1)}
@@ -497,44 +483,50 @@ const ProfilerQueries = ({
   }, []);
 
   // Layout: two columns with tabs
+  const hasQueryData = processedQueryData.length > 0 && processedQueryData[0].children.length > 0;
+  const hasAggData = processedAggData.length > 0 && processedAggData[0].children.length > 0;
   return (
     <div
       className="profiler-queries-clean-layout"
       ref={containerRef}
       style={{ display: 'flex', height: '100vh', minWidth: 0, minHeight: 0, position: 'relative' }}
-              >
-                <div 
+    >
+      <div 
         className="profiler-queries-left-panel"
         style={{ width: leftPanelWidth, minWidth: 180, maxWidth: 600, height: '100%', minHeight: 0, boxSizing: 'border-box', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+      >
+        {hasQueryData || hasAggData ? (
+          <>
+            <div className="query-tabs">
+              <button
+                className={`query-tab${showHierarchy === 'query' ? ' active' : ''}`}
+                onClick={() => setShowHierarchy('query')}
+              >
+                Searches
+              </button>
+              {hasAggData && (
+                <button
+                  className={`query-tab${showHierarchy === 'agg' ? ' active' : ''}`}
+                  onClick={() => setShowHierarchy('agg')}
+                  disabled={!hasAggData}
                 >
-        <div className="query-tabs">
-          <button
-            className={`query-tab${showHierarchy === 'query' ? ' active' : ''}`}
-            onClick={() => setShowHierarchy('query')}
-          >
-            Searches
-          </button>
-          {processedAggData.length > 0 && processedAggData[0].children && processedAggData[0].children.length > 0 && (
-            <button
-              className={`query-tab${showHierarchy === 'agg' ? ' active' : ''}`}
-              onClick={() => setShowHierarchy('agg')}
-              disabled={processedAggData.length === 0}
-            >
-              Aggregations
-            </button>
-          )}
-        </div>
-        {showHierarchy === 'query' && processedQueryData.length > 0 && processedQueryData[0].children.length > 0 && (
-          <div className="query-hierarchy-container" style={{ flex: 1, overflowY: 'auto', height: '100%', minHeight: 0 }}>
-            {renderHierarchy(processedQueryData[0].children)}
-                  </div>
-                )}
-        {showHierarchy === 'agg' && processedAggData.length > 0 && processedAggData[0].children.length > 0 && (
-          <div className="query-hierarchy-container" style={{ flex: 1, overflowY: 'auto', height: '100%', minHeight: 0 }}>
-            {renderHierarchy(processedAggData[0].children)}
+                  Aggregations
+                </button>
+              )}
+            </div>
+            {showHierarchy === 'query' && hasQueryData && (
+              <div className="query-hierarchy-container" style={{ flex: 1, overflowY: 'auto', height: '100%', minHeight: 0 }}>
+                {renderHierarchy(processedQueryData[0].children)}
               </div>
-          )}
-        </div>
+            )}
+            {showHierarchy === 'agg' && hasAggData && (
+              <div className="query-hierarchy-container" style={{ flex: 1, overflowY: 'auto', height: '100%', minHeight: 0 }}>
+                {renderHierarchy(processedAggData[0].children)}
+              </div>
+            )}
+          </>
+        ) : null}
+      </div>
       <div
         className="resizer"
         onMouseDown={e => {
@@ -548,25 +540,27 @@ const ProfilerQueries = ({
         className="profiler-queries-right-panel"
         style={{ flex: 1, minWidth: 0, height: '100%', minHeight: 0, boxSizing: 'border-box', overflowY: 'auto' }}
       >
-          {selectedProfileId ? (
-          <QueryDetail
-            query={findNodeById(
-              showHierarchy === 'query' ? (processedQueryData[0]?.children || []) : (processedAggData[0]?.children || []),
-              selectedProfileId
-            )}
-            rootId={
-              showHierarchy === 'query'
-                ? processedQueryData[0]?.id
-                : processedAggData[0]?.id
-            }
-            compareQuery={profileToCompare}
-            compareMode={compareMode}
-          />
+        {hasQueryData || hasAggData ? (
+          selectedProfileId ? (
+            <QueryDetail
+              query={findNodeById(
+                showHierarchy === 'query' ? (processedQueryData[0]?.children || []) : (processedAggData[0]?.children || []),
+                selectedProfileId
+              )}
+              rootId={
+                showHierarchy === 'query'
+                  ? processedQueryData[0]?.id
+                  : processedAggData[0]?.id
+              }
+              compareQuery={profileToCompare}
+              compareMode={compareMode}
+            />
           ) : (
-          <div className="query-detail-placeholder" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>
-            Select a node in the hierarchy to view its operational breakdown and children.
+            <div className="query-detail-placeholder" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>
+              Select a node in the hierarchy to view its operational breakdown and children.
             </div>
-          )}
+          )
+        ) : null}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import ProfilerComparisonResults from '../components/features/ProfilerDashboard/ProfilerComparison/ProfilerComparisonResults';
+import ProfilerComparisonResults from './ProfilerComparisonResults';
 
 describe('ProfilerComparisonResults', () => {
   const mockProfiles = [

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './ProfilerCompare.css';
 
 const ProfilerCompare = ({ onClose, profiles, onCompare }) => {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import ComparisonDashboard from '../components/features/ProfilerDashboard/ComparisonDashboard/ComparisonDashboard';
+import ComparisonDashboard from './ComparisonDashboard';
 
 describe('ComparisonDashboard', () => {
   const mockOnExit = jest.fn();

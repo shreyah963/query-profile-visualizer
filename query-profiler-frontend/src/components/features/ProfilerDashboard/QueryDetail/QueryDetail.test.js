@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import QueryDetail from '../components/features/ProfilerDashboard/QueryDetail/QueryDetail';
+import QueryDetail from './QueryDetail';
 
 describe('QueryDetail', () => {
   const mockQuery = {

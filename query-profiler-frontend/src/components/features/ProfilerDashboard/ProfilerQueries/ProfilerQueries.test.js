@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import ProfilerQueries from '../components/features/ProfilerDashboard/ProfilerQueries/ProfilerQueries';
+import ProfilerQueries from './ProfilerQueries';
 
 describe('ProfilerQueries', () => {
   const mockData = {

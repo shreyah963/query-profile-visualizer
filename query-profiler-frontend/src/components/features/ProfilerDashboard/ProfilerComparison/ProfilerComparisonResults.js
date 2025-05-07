@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import './ProfilerComparisonResults.css';
-import { FaChevronDown, FaChevronRight } from 'react-icons/fa';
 
 const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
-  const [viewMode, setViewMode] = useState(comparisonType || 'detailed');
   const [comparisonData, setComparisonData] = useState(null);
   const [expandedSections, setExpandedSections] = useState({});
 
@@ -50,34 +46,6 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     }
   }, [profiles]);
   
-  const getBreakdown = (profile) => {
-    if (!profile) return {};
-    
-    console.log('Extracting breakdown for profile:', profile);
-    
-    // First try to get breakdown from the standard location
-    if (profile.profile?.shards?.[0]?.searches?.[0]?.query?.[0]?.breakdown) {
-      const breakdown = profile.profile.shards[0].searches[0].query[0].breakdown;
-      console.log('Found breakdown in standard location:', breakdown);
-      return breakdown;
-    }
-    
-    // If not found, try alternative locations
-    if (profile.breakdown) {
-      console.log('Found breakdown in root:', profile.breakdown);
-      return profile.breakdown;
-    }
-    
-    // If still not found, try to extract from query data
-    if (profile.query?.breakdown) {
-      console.log('Found breakdown in query:', profile.query.breakdown);
-      return profile.query.breakdown;
-    }
-    
-    console.log('No breakdown data found in profile');
-    return {};
-  };
-
   // Helper function to extract fields and their order
   const extractFieldsWithOrder = (obj) => {
     if (!obj || typeof obj !== 'object') return [];
@@ -386,6 +354,41 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
       });
     }
 
+    // Compare aggregations recursively
+    const compareAggregations = (aggs1, aggs2, parentPath = 'Aggregation') => {
+      if (!aggs1 || !aggs2) return;
+      aggs1.forEach((agg1, index) => {
+        const agg2 = aggs2[index];
+        if (!agg1 || !agg2) {
+          differences.push({
+            type: 'missing',
+            field: `Aggregation ${index + 1}`,
+            path: `${parentPath} → Aggregation ${index + 1}`
+          });
+          return;
+        }
+        // Compare aggregation fields
+        if (agg1.breakdown && agg2.breakdown) {
+          compareObjects(agg1.breakdown, agg2.breakdown, {
+            path: `${parentPath} → ${agg1.type || 'Aggregation'} (${agg1.description || ''})`,
+            queryType: agg1.type,
+            description: agg1.description
+          });
+        }
+        // Recursively compare aggregation children
+        if (agg1.children && agg2.children) {
+          compareAggregations(agg1.children, agg2.children, `${parentPath} → ${agg1.type || 'Aggregation'}`);
+        }
+      });
+    };
+
+    // Compare aggregations recursively
+    const aggs1 = prof1.shards[0].aggregations || [];
+    const aggs2 = prof2.shards[0].aggregations || [];
+    if (aggs1.length > 0 || aggs2.length > 0) {
+      compareAggregations(aggs1, aggs2, 'Aggregation');
+    }
+
     console.log('Calculated differences:', differences);
     return { differences };
   };
@@ -410,11 +413,6 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
     
     // Handle seconds
     return `${(time / 1000).toFixed(2)}s`;
-  };
-  
-  const formatPercentage = (percentage) => {
-    const value = Math.abs(percentage).toFixed(1);
-    return percentage >= 0 ? `+${value}%` : `-${value}%`;
   };
   
   const renderSummaryView = () => {
@@ -623,65 +621,6 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
       ...prev,
       [path]: !prev[path]
     }));
-  };
-
-  const formatDuration = (time) => {
-    if (time === undefined || time === null) return 'N/A';
-    
-    // Handle micro-second level values (less than 0.001 seconds)
-    if (time < 0.001) {
-      // Convert to microseconds (1 second = 1,000,000 microseconds)
-      const microseconds = time * 1000000;
-      return `${microseconds.toFixed(2)}μs`;
-    }
-    
-    // Handle milli-second level values (less than 1 second)
-    if (time < 1) {
-      // Convert to milliseconds (1 second = 1000 milliseconds)
-      const milliseconds = time * 1000;
-      return `${milliseconds.toFixed(2)}ms`;
-    }
-    
-    // Handle seconds (show 2 decimal places for precision)
-    return `${time.toFixed(2)}s`;
-  };
-
-  const calculateDiff = (value1, value2) => {
-    if (value1 === undefined || value2 === undefined || value1 === null || value2 === null) {
-      return { diff: 'N/A', percentage: 0, isImprovement: false };
-    }
-    
-    const diff = value2 - value1;
-    
-    // Handle the case where both values are very small but technically different
-    if (Math.abs(diff) < 0.0001) {
-      return { diff, percentage: "0.00", isImprovement: false };
-    }
-    
-    // Calculate percentage, handling the case where value1 is very small
-    let percentage;
-    if (value1 < 0.001 && value2 > 0) {
-      // When first value is extremely small, show a large percentage increase
-      percentage = 9999;
-    } else if (value1 === 0 && value2 > 0) {
-      // When first value is zero and second value is positive
-      percentage = 9999;
-    } else if (value1 === 0 && value2 === 0) {
-      // Both values are zero
-      percentage = 0;
-    } else {
-      // Normal case
-      percentage = (Math.abs(diff) / value1) * 100;
-    }
-    
-    // For execution time, lower is better
-    const isImprovement = diff < 0;
-    
-    return { 
-      diff, 
-      percentage: percentage > 9999 ? "9999+" : percentage.toFixed(2), 
-      isImprovement 
-    };
   };
 
   const renderStructureDifferences = (differences) => {

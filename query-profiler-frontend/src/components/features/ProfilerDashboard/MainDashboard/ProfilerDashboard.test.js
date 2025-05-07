@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import ProfilerDashboard from '../components/features/ProfilerDashboard/MainDashboard/ProfilerDashboard';
+import ProfilerDashboard from './ProfilerDashboard';
 
 describe('ProfilerDashboard', () => {
   const mockData = {

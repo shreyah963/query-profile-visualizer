@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import './QueryDetail.css';
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json';
-import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 
 // Register the language
 SyntaxHighlighter.registerLanguage('json', json);
@@ -22,9 +21,6 @@ const QueryDetail = ({ query, rootId }) => {
   const [expandedQueryNodes, setExpandedQueryNodes] = useState({});
 
   if (!query) return null;
-
-  // Get the original query from the query object
-  const originalQueryData = query.originalQueryData || null;
 
   // Log the query object for debugging
   console.log('QueryDetail - received query object:', {
@@ -480,8 +476,6 @@ const QueryDetail = ({ query, rootId }) => {
                            (query.queryName && query.queryName !== 'Aggregations' && query.type !== 'Aggregations' && 
                             query.breakdown && Object.keys(query.breakdown).length > 0);
   
-  const isAggregationGroup = query.type === 'Aggregations' && query.queryName === 'Aggregations';
-  
   // Check for breakdown data - also check for direct aggregation data
   const hasBreakdownData = (!isCollector && !isQueryRewrite && Object.keys(breakdown).length > 0) || 
                             (aggregations && aggregations.length > 0 && aggregations.some(agg => agg.breakdown || agg.time_in_nanos)) ||
@@ -499,16 +493,6 @@ const QueryDetail = ({ query, rootId }) => {
   
   // Get collector data if this is the Query Collectors section
   const hasCollectorData = isCollector && query.collectorData && query.collectorData.length > 0;
-
-  // Helper function to check current query type against a list of possible types
-  const isCurrentQueryType = (types) => {
-    if (types === 'ConstantScoreQuery') return isConstantScore;
-    if (types === 'QueryRewrite') return isQueryRewrite;
-    if (types === 'Collectors') return isCollector;
-    if (types === 'Aggregations') return isAggregationType;
-    // Add more type checks as needed
-    return false;
-  };
 
   // Helper function to toggle a query node's expanded state
   const toggleQueryNode = (queryId) => {
@@ -573,7 +557,6 @@ const QueryDetail = ({ query, rootId }) => {
 
   // --- Add after extracting queryType, queryIntentLabel, etc. ---
   const isRewrite = query.type === 'Rewrite' || query.queryName === 'Rewrite';
-  const collectorChildren = query.children || [];
 
   // Special rendering for AggregationDebug node
   if (query.type === 'AggregationDebug' && query.debug) {

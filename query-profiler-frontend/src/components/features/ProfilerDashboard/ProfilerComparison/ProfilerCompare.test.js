@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import ProfilerCompare from '../components/features/ProfilerDashboard/ProfilerComparison/ProfilerCompare';
+import ProfilerCompare from './ProfilerCompare';
 
 describe('ProfilerCompare', () => {
   const mockOnCompare = jest.fn();

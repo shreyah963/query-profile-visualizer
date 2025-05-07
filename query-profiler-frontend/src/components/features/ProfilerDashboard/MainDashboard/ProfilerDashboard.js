@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ProfilerQueries from '../ProfilerQueries';
 import { ProfilerComparisonResults } from '../ProfilerComparison';
 import ShardVisualization from '../ShardVisualization/ShardVisualization';
@@ -8,15 +8,12 @@ const ProfilerDashboard = ({ data, updateData }) => {
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [profileToCompare, setProfileToCompare] = useState(null);
   const [showComparisonResults, setShowComparisonResults] = useState(false);
-  const [comparisonType, setComparisonType] = useState('detailed');
   const [showDualQueryInput, setShowDualQueryInput] = useState(false);
   const [profile1, setProfile1] = useState(null);
   const [profile2, setProfile2] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [jsonInput1, setJsonInput1] = useState('');
   const [jsonInput2, setJsonInput2] = useState('');
-  const [uploadError, setUploadError] = useState(null);
   const [showJsonInput, setShowJsonInput] = useState(false);
   const [selectedShardIndex, setSelectedShardIndex] = useState(0);
   
@@ -232,9 +229,8 @@ const ProfilerDashboard = ({ data, updateData }) => {
           <button 
             className="compare-profiles-btn"
             onClick={handleCompare}
-            disabled={isLoading}
           >
-            {isLoading ? 'Comparing...' : 'Compare Profiles'}
+            Compare Profiles
           </button>
         </div>
 
@@ -311,7 +307,6 @@ const ProfilerDashboard = ({ data, updateData }) => {
             </div>
           </div>
         )}
-        {uploadError && <div className="upload-error">{uploadError}</div>}
       </div>
 
       {data && data.profileData && data.profileData.shards && data.profileData.shards.length > 1 && (
@@ -362,7 +357,6 @@ const ProfilerDashboard = ({ data, updateData }) => {
       {showComparisonResults && selectedProfile && profileToCompare && (
         <ProfilerComparisonResults 
           profiles={[selectedProfile, profileToCompare]} 
-          comparisonType={comparisonType}
           onClose={() => setShowComparisonResults(false)}
         />
       )}
