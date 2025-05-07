@@ -5,19 +5,20 @@
 ## Overview
 
 The Query Profiler Dashboard is a React-based application for visualizing and comparing Opensearch query profile outputs. It provides two main interfaces:
-- **MainDashboard:** For uploading, exploring, and analyzing a single profile.
-- **ComparisonDashboard:** For comparing two profiles side by side.
+- **Main Dashboard:** For uploading, exploring, and analyzing a single profile.
+- **Comparison Dashboard:** For comparing two profiles side by side.
 
 ---
 
-## MainDashboard (Central interface for visualizing profile outputs)
+## Main Dashboard (Central interface for visualizing profile outputs)
 
 **Purpose:**  
 To allow users to upload a query profile, visualize shard and query profile output, and drill down into detailed metrics for each query or aggregation.
 
 **Visual Layout:**
 
-<img width="449" alt="MainDashboard" src="https://github.com/user-attachments/assets/099c6645-ae96-4d23-adea-9bb7a7123043" />
+<img width="379" alt="Main" src="https://github.com/user-attachments/assets/97af71aa-6aee-463a-86c7-ed53eaa6a197" />
+
 
 **Key Features:**
 - Upload and validate profile files (JSON)
@@ -27,14 +28,15 @@ To allow users to upload a query profile, visualize shard and query profile outp
 
 ---
 
-## ComparisonDashboard (Central interface for comparing profile outputs)
+## Comparison Dashboard (Central interface for comparing profile outputs)
 
 **Purpose:**  
 To allow users to upload or paste two profiles and view a side-by-side comparison of their structure and performance.
 
 **Visual Layout:**
 
-<img width="450" alt="ComparisonDashboard" src="https://github.com/user-attachments/assets/04f74379-b618-4668-9cd6-11e5e5250e16" />
+<img width="384" alt="Compare" src="https://github.com/user-attachments/assets/96b3d378-d3b9-4446-8f9d-cd4b16f34a33" />
+
 
 **Key Features:**
 - Upload or paste two profiles for comparison
@@ -56,12 +58,12 @@ To allow users to upload or paste two profiles and view a side-by-side compariso
 
 ## User Flow
 
-1. **MainDashboard:**
+1. **Main Dashboard:**
    - User uploads a profile output.
    - Shard visualization and query hierarchy are populated.
    - User selects a query/aggregation to view details.
 
-2. **ComparisonDashboard:**
+2. **Comparison Dashboard:**
    - User uploads or pastes two profiles.
    - User clicks "Compare".
    - Side-by-side comparison results are displayed.
@@ -72,14 +74,14 @@ To allow users to upload or paste two profiles and view a side-by-side compariso
 
 This section describes how the main components interact in both dashboard modes.
 
-### MainDashboard Interaction
+### Main Dashboard Interaction
 - User uploads a profile output via ProfilerDashboard.
 - ProfilerDashboard updates state and passes data to ShardVisualization and ProfilerQueries.
 - User selects a query node in ProfilerQueries.
 - ProfilerQueries notifies ProfilerDashboard of the selection.
 - ProfilerDashboard passes the selected node to QueryDetail for detailed metrics.
 
-### ComparisonDashboard Interaction
+### Comparison Dashboard Interaction
 - User uploads or pastes two profile outputs via ProfilerCompare.
 - ProfilerCompare validates inputs and notifies ComparisonDashboard when both are ready.
 - User clicks 'Compare', triggering ProfilerComparisonResults to display differences.
