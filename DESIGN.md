@@ -17,7 +17,8 @@ To allow users to upload a query profile, visualize shard and query profile outp
 
 **Visual Layout:**
 
-<img width="379" alt="Main" src="https://github.com/user-attachments/assets/97af71aa-6aee-463a-86c7-ed53eaa6a197" />
+<img width="382" alt="Main" src="https://github.com/user-attachments/assets/99bb8816-28a6-4167-9c9a-f31517d19a6b" />
+
 
 
 **Key Features:**
@@ -35,7 +36,8 @@ To allow users to upload or paste two profiles and view a side-by-side compariso
 
 **Visual Layout:**
 
-<img width="384" alt="Compare" src="https://github.com/user-attachments/assets/96b3d378-d3b9-4446-8f9d-cd4b16f34a33" />
+<img width="382" alt="Compare" src="https://github.com/user-attachments/assets/241be09a-9ca6-4943-9fe0-4fe897d68fb4" />
+
 
 
 **Key Features:**
