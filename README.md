@@ -27,15 +27,11 @@ To run the Query Profiler Frontend locally:
 
 ### Main Dashboard
 
-
 https://github.com/user-attachments/assets/65b820e9-926a-49ac-9e0d-95abf7d516b5
-
-
 
 ### Comparison Dashboard
 
 https://github.com/user-attachments/assets/0c16d233-a324-486d-83ab-7263e5d29ce7
-
 
 ---
 
