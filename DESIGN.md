@@ -39,7 +39,6 @@ To allow users to upload or paste two profiles and view a side-by-side compariso
 <img width="382" alt="Compare" src="https://github.com/user-attachments/assets/241be09a-9ca6-4943-9fe0-4fe897d68fb4" />
 
 
-
 **Key Features:**
 - Upload or paste two profiles for comparison
 - Validate both profiles
