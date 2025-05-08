@@ -7,7 +7,6 @@ export const API = {
   TIMEOUT: 10000,
 };
 
-
 export const BREAKDOWN_GROUPS = {
   BUILD_SCORER: ['build_scorer', 'build_scorer_count'],
   CREATE_WEIGHT: ['create_weight', 'create_weight_count'],

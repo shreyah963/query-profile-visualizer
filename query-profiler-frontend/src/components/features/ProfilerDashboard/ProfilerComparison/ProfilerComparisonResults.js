@@ -344,20 +344,19 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
             )}
             {isExpanded && (
               <>
-                {type === 'collector' && (
-                  <div className="collector-time-row" style={{ width: '100%' }}>
-                    <table className="comparison-table" style={{ marginBottom: 0 }}>
-                      <tbody>
-                        <tr>
-                          <td style={{ textAlign: 'left', fontWeight: 600 }}>Collector Time</td>
-                          <td className="metric-value">{formatTime(time1)}</td>
-                          <td className="metric-value">{formatTime(time2)}</td>
-                          <td className={`metric-diff ${getDiffClass(time1, time2, diff, percentage)}`}>{diff !== 0 ? `${diff > 0 ? '+' : ''}${formatTime(Math.abs(diff))} (${percentageFormatted}%)` : 'Identical'}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                {/* Node total time row */}
+                <div className="node-time-row" style={{ width: '100%' }}>
+                  <table className="comparison-table" style={{ marginBottom: 0 }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ textAlign: 'left', fontWeight: 600 }}>time_in_nanos</td>
+                        <td className="metric-value">{formatTime(time1)}</td>
+                        <td className="metric-value">{formatTime(time2)}</td>
+                        <td className={`metric-diff ${getDiffClass(time1, time2, diff, percentage)}`}>{diff !== 0 ? `${diff > 0 ? '+' : ''}${formatTime(Math.abs(diff))} (${percentageFormatted}%)` : 'Identical'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
                 {allMetrics.size > 0 && (
                   <div className="query-node-breakdown">
                     <table className="comparison-table">
@@ -465,70 +464,43 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
       );
     }
 
-    // Filter out reorder differences and group remaining differences by path and queryType
-    const groupedDifferences = differences
-      .filter(diff => diff.type !== 'reorder') // Filter out reorder differences
-      .reduce((acc, diff) => {
-        const key = `${diff.path}${diff.queryType ? ` (${diff.queryType})` : ''}`;
-        if (!acc[key]) {
-          acc[key] = {
-            path: diff.path,
-            queryType: diff.queryType,
-            description: diff.description,
-            differences: []
-          };
-        }
-        acc[key].differences.push(diff);
-        return acc;
-      }, {});
-      
-      return (
-      <div className="structure-differences">
-        {Object.values(groupedDifferences).map((group, groupIndex) => (
-          <div key={groupIndex} className="difference-group">
-            <h4 className="difference-path">
-              {group.path}
-              {group.queryType && (
-                <span className="query-type">
-                  {group.queryType}
-                  {group.description && (
-                    <span className="query-description">
-                      {' - '}{group.description}
-                    </span>
-                  )}
-                </span>
-              )}
-            </h4>
-            <ul className="difference-list">
-              {group.differences.map((diff, index) => {
-                let className = '';
-                let message = '';
-                
-                if (diff.type === 'missing') {
-                  className = 'field-missing';
-                  message = (
-                    <span className="missing-field-message">
-                      Field "{diff.field}" is present in Profile 1 but missing in Profile 2
-                    </span>
-                  );
-                } else if (diff.type === 'added') {
-                  className = 'field-added';
-                  message = (
-                    <span className="missing-field-message">
-                      Field "{diff.field}" is present in Profile 2 but missing in Profile 1
-                    </span>
-                  );
-                }
-    
+    // Helper to show a hierarchy of node types, filtering out verbose descriptions/values
+    const formatPath = (diff) => {
+      // Acceptable node type patterns
+      const nodeTypeRegex = /Query$|Aggregation$|Collector$|^Child Query$/;
+      let parts = [];
+      if (diff.path) {
+        parts = diff.path.split('→').map(p => p.trim()).filter(Boolean);
+        // Only keep node type parts
+        parts = parts.filter(p => nodeTypeRegex.test(p));
+      }
+      // Append queryType if not already last
+      if (diff.queryType && (!parts.length || parts[parts.length - 1] !== diff.queryType)) {
+        parts.push(diff.queryType);
+      }
+      return parts.join(' → ');
+    };
+
     return (
-                  <li key={index} className={className}>
-                    {message}
-                  </li>
-                );
-              })}
-            </ul>
-        </div>
-        ))}
+      <div className="structure-differences">
+        <ul className="difference-list">
+          {differences.filter(diff => diff.type !== 'reorder').map((diff, index) => {
+            let className = '';
+            let message = '';
+            if (diff.type === 'missing') {
+              className = 'field-missing';
+              message = `Field "${diff.field}" is present in Profile 1 but missing in Profile 2 at: ${formatPath(diff)}`;
+            } else if (diff.type === 'added') {
+              className = 'field-added';
+              message = `Field "${diff.field}" is present in Profile 2 but missing in Profile 1 at: ${formatPath(diff)}`;
+            }
+            return (
+              <li key={index} className={className}>
+                {message}
+              </li>
+            );
+          })}
+        </ul>
       </div>
     );
   };
