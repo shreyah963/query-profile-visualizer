@@ -1,4 +1,4 @@
-# Query Profiler Frontend
+# Query Profile Visualizer
 
 ## Getting Started
 
