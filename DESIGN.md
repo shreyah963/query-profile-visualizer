@@ -1,10 +1,10 @@
-# Query Profiler Dashboard – Design Document
+# Query Profile Visualizer – Design Document
 
 ---
 
 ## Overview
 
-The Query Profiler Dashboard is a React-based application for visualizing and comparing Opensearch query profile outputs. It provides two main interfaces:
+Query Profile Visualizer is a React-based application for visualizing and comparing Opensearch query profile outputs. It provides two main interfaces:
 - **Main Dashboard:** For uploading, exploring, and analyzing a single profile.
 - **Comparison Dashboard:** For comparing two profiles side by side.
 
