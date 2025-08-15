@@ -1,18 +1,12 @@
 import React, { useState } from 'react';
 import ProfilerQueries from '../ProfilerQueries';
-import { ProfilerComparisonResults } from '../ProfilerComparison';
 import ShardVisualization from '../ShardVisualization/ShardVisualization';
 
 const ProfilerDashboard = ({ data, updateData }) => {
   const [selectedProfile, setSelectedProfile] = useState(null);
-  const [profileToCompare, setProfileToCompare] = useState(null);
-  const [showComparisonResults, setShowComparisonResults] = useState(false);
-  const [showDualQueryInput, setShowDualQueryInput] = useState(false);
   const [profile1, setProfile1] = useState(null);
-  const [profile2, setProfile2] = useState(null);
   const [error, setError] = useState(null);
   const [jsonInput1, setJsonInput1] = useState('');
-  const [jsonInput2, setJsonInput2] = useState('');
   const [showJsonInput, setShowJsonInput] = useState(true);
   const [selectedShardIndex, setSelectedShardIndex] = useState(0);
   
@@ -51,18 +45,10 @@ const ProfilerDashboard = ({ data, updateData }) => {
     reader.onload = (e) => {
       try {
         const profileData = JSON.parse(e.target.result);
-        if (profileNumber === 1) {
-          setProfile1(profileData);
-        } else {
-          setProfile2(profileData);
-        }
-        // Update main visualization if not in comparison mode
-        if (!showDualQueryInput) {
-          const processedData = buildDashboardData(profileData);
-          updateData(processedData);
-          setSelectedProfile(null);
-          setSelectedShardIndex(0);
-        }
+        const processedData = buildDashboardData(profileData);
+        updateData(processedData);
+        setSelectedProfile(null);
+        setSelectedShardIndex(0);
       } catch (err) {
         setError('Invalid JSON file: ' + err.message);
         setTimeout(() => setError(''), 3000);
@@ -73,29 +59,17 @@ const ProfilerDashboard = ({ data, updateData }) => {
 
   const handleJsonInput = (value, profileNumber) => {
     // Update the text area value
-    if (profileNumber === 1) {
-      setJsonInput1(value);
-    } else {
-      setJsonInput2(value);
-    }
+    setJsonInput1(value);
 
     // Try to parse and update the profile data
     try {
       const profileData = JSON.parse(value);
-      if (profileNumber === 1) {
-        setProfile1(profileData);
-      } else {
-        setProfile2(profileData);
-      }
+      setProfile1(profileData);
       setError(null);
     } catch (err) {
       // Don't show error while typing
       // But clear the profile data if JSON becomes invalid
-      if (profileNumber === 1) {
-        setProfile1(null);
-      } else {
-        setProfile2(null);
-      }
+      setProfile1(null);
     }
   };
 
@@ -113,31 +87,6 @@ const ProfilerDashboard = ({ data, updateData }) => {
       setError('Invalid JSON: ' + err.message);
       // Do not update the dashboard if JSON is invalid
     }
-  };
-
-  const handleCompare = () => {
-    console.log('Comparing profiles:', { profile1, profile2 });
-    
-    if (!profile1 || !profile2) {
-      setError('Please provide both profiles to compare.');
-      return;
-    }
-
-    setShowComparisonResults(true);
-  };
-
-  const handleDualQueryComparison = () => {
-    setShowDualQueryInput(true);
-    setError(null);
-  };
-
-  const exitDualQueryMode = () => {
-    setShowDualQueryInput(false);
-    setProfile1(null);
-    setProfile2(null);
-    setJsonInput1('');
-    setJsonInput2('');
-    setError(null);
   };
 
   // Handle shard selection
@@ -164,102 +113,16 @@ const ProfilerDashboard = ({ data, updateData }) => {
     }
   };
 
-  // Render dual query comparison UI
-  if (showDualQueryInput) {
-    return (
-      <div className="profiler-dashboard dual-query-mode">
-        <header className="dashboard-header">
-          <h1>Profile Comparison Mode</h1>
-          <button className="exit-dual-mode-btn" onClick={exitDualQueryMode}>
-            Exit Comparison Mode
-          </button>
-        </header>
-
-        <div className="dashboard-content">
-        <div className="dual-query-container">
-          <div className="query-column">
-            <div className="query-header">
-              <h2>Profile 1</h2>
-              <input
-                type="file"
-                accept=".json"
-                onChange={(e) => handleProfileUpload(e, 1)}
-                className="profile-upload"
-              />
-            </div>
-            <div className="query-textarea-container">
-              <textarea
-                value={jsonInput1}
-                onChange={(e) => handleJsonInput(e.target.value, 1)}
-                placeholder="Or paste profile output in JSON format here..."
-                rows={10}
-                className="query-textarea"
-              />
-            </div>
-          </div>
-          <div className="query-column">
-            <div className="query-header">
-              <h2>Profile 2</h2>
-              <input
-                type="file"
-                accept=".json"
-                onChange={(e) => handleProfileUpload(e, 2)}
-                className="profile-upload"
-              />
-            </div>
-            <div className="query-textarea-container">
-              <textarea
-                value={jsonInput2}
-                onChange={(e) => handleJsonInput(e.target.value, 2)}
-                placeholder="Or paste profile output in JSON format here..."
-                rows={10}
-                className="query-textarea"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="dual-query-actions">
-          {error && <div className="query-error">{error}</div>}
-          <button 
-            className="compare-profiles-btn"
-            onClick={handleCompare}
-          >
-            Compare Profiles
-          </button>
-        </div>
-
-        {showComparisonResults && profile1 && profile2 && (
-          <ProfilerComparisonResults 
-            profiles={[profile1, profile2]} 
-            onClose={() => setShowComparisonResults(false)}
-          />
-        )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="profiler-dashboard">
       <header className="dashboard-header">
         <h1>Query Profiler Dashboard</h1>
-        <div className="search-container">
-          <input type="text" placeholder="Search profiler" className="search-input" />
-          <button className="download-btn">↓</button>
-        </div>
       </header>
 
       <div className="dashboard-content">
       <div className="dashboard-actions">
         <div className="profile-actions">
           <div className="profile-actions-left">
-            <button
-              className="visualize-btn"
-              onClick={() => setShowJsonInput(!showJsonInput)}
-            >
-              New Profile
-            </button>
             <input
               type="file"
               id="profile-upload"
@@ -274,12 +137,6 @@ const ProfilerDashboard = ({ data, updateData }) => {
               Upload File
             </button>
           </div>
-          <button
-            className="compare-btn"
-            onClick={handleDualQueryComparison}
-          >
-            Compare Profiles
-          </button>
         </div>
         {showJsonInput && (
           <div className="json-input-container">
@@ -347,17 +204,9 @@ const ProfilerDashboard = ({ data, updateData }) => {
               }}
               selectedProfile={selectedProfile}
               setSelectedProfile={setSelectedProfile}
-              setProfileToCompare={showComparisonResults ? setProfileToCompare : () => {}}
-              profileToCompare={showComparisonResults ? profileToCompare : null}
             />
           )}
 
-          {showComparisonResults && selectedProfile && profileToCompare && (
-            <ProfilerComparisonResults 
-              profiles={[selectedProfile, profileToCompare]} 
-              onClose={() => setShowComparisonResults(false)}
-            />
-          )}
         </>
       )}
       </div>

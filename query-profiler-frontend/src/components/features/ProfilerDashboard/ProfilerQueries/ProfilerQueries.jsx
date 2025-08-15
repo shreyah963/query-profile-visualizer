@@ -116,7 +116,7 @@ const processCollectorChildren = (collector, parentCollectorTimeNanos, index = 0
     rawBreakdown,
     children,
   };
-    };
+};
     
     // Helper function to recursively transform an aggregation and its children
     const transformAggregation = (agg, index, totalQueryTimeNanos, path = '') => {
@@ -167,6 +167,74 @@ const processCollectorChildren = (collector, parentCollectorTimeNanos, index = 0
         children: transformedChildren
       };
     };
+
+// Helper function to recursively transform a fetch phase and its children
+const transformFetchPhase = (phase, index, parentTimeNanos, path = '') => {
+  const nodeId = path ? `${path}-${index}` : `${index}`;
+  const thisTimeNanos = phase.time_in_nanos || 0;
+
+  let formattedBreakdown = {};
+  const rawBreakdown = phase.breakdown || {};
+
+  if (phase.breakdown) {
+    // Determine if this is a root fetch phase or a sub-phase based on breakdown keys
+    const isSubPhase = Object.prototype.hasOwnProperty.call(phase.breakdown, 'process');
+
+    const breakdownGroups = isSubPhase
+        ? {
+          process: ['process', 'process_count'],
+          set_next_reader: ['set_next_reader', 'set_next_reader_count'],
+        }
+        : {
+          load_stored_fields: ['load_stored_fields', 'load_stored_fields_count'],
+          load_source: ['load_source', 'load_source_count'],
+          create_stored_fields_visitor: ['create_stored_fields_visitor', 'create_stored_fields_visitor_count'],
+          build_sub_phase_processors: ['build_sub_phase_processors', 'build_sub_phase_processors_count'],
+          get_next_reader: ['get_next_reader', 'get_next_reader_count'],
+        };
+
+    Object.entries(breakdownGroups).forEach(([groupKey, keys]) => {
+      if (keys.some((k) => phase.breakdown[k] > 0)) {
+        formattedBreakdown[groupKey] = keys.reduce((sum, key) => {
+          if (key.endsWith('_count')) return sum;
+          return sum + (phase.breakdown[key] || 0);
+        }, 0);
+      }
+    });
+
+    Object.entries(phase.breakdown).forEach(([key, value]) => {
+      if (key.endsWith('_count')) return;
+      const isInGroup = Object.values(breakdownGroups).some((groupKeys) => groupKeys.includes(key));
+      if (!isInGroup && typeof value === 'number' && value > 0) {
+        formattedBreakdown[key] = value;
+      }
+    });
+  }
+
+  const children = [];
+  (phase.children || []).forEach((child, childIndex) => {
+    children.push(transformFetchPhase(child, childIndex, thisTimeNanos, nodeId));
+  });
+  // InnerHitsPhase can have its own fetch phases
+  if (phase.fetch) {
+    phase.fetch.forEach((child, childIndex) => {
+      children.push(transformFetchPhase(child, childIndex, thisTimeNanos, `${nodeId}-fetch`));
+    });
+  }
+  return {
+    id: `fetch-${nodeId}`,
+    queryName: phase.type || 'Fetch',
+    type: phase.type || 'Fetch',
+    description: phase.description || '',
+    operation: phase.description || phase.type || 'Fetch',
+    totalDuration: thisTimeNanos / 1000000,
+    time_ms: thisTimeNanos / 1000000,
+    percentage: parentTimeNanos > 0 ? (thisTimeNanos / parentTimeNanos) * 100 : 0,
+    breakdown: formattedBreakdown,
+    rawBreakdown: rawBreakdown,
+    children,
+  };
+};
     
 // Dynamic color map for query types (use pastel colors for all types)
 const typeColorMap = {
@@ -191,7 +259,8 @@ const ProfilerQueries = ({
 }) => {
   const [processedQueryData, setProcessedQueryData] = useState([]);
   const [processedAggData, setProcessedAggData] = useState([]);
-  const [showHierarchy, setShowHierarchy] = useState('query'); // 'query' or 'agg'
+  const [processedFetchData, setProcessedFetchData] = useState([]);
+  const [showHierarchy, setShowHierarchy] = useState('query'); // 'query', 'agg', or 'fetch'
   const [expandedNodes, setExpandedNodes] = useState({}); // Empty by default means all nodes are collapsed
   const [leftPanelWidth, setLeftPanelWidth] = useState(320);
   const [selectedProfileId, setSelectedProfileId] = useState(null);
@@ -203,7 +272,7 @@ const ProfilerQueries = ({
   // Process query and aggregation data
   const processData = useCallback((data) => {
     if (!data || !data.profileData || !data.profileData.shards) {
-      return { queries: [], aggs: [] };
+      return { queries: [], aggs: [], fetch: [] };
     }
     try {
       const queries = data.profileData.shards[0]?.searches?.[0]?.query || [];
@@ -310,17 +379,32 @@ const ProfilerQueries = ({
         })
       }] : [];
 
-      return { queries: queryChild, aggs: aggChild };
+      // Fetch phases
+      const fetchPhases = data.profileData.shards[0]?.fetch || data.profileData.shards[0]?.searches?.[0]?.fetch || [];
+      const totalFetchTimeNanos = fetchPhases.reduce((sum, f) => sum + (f.time_in_nanos || 0), 0);
+      const fetchChild = fetchPhases.length > 0 ? [{
+        id: 'fetch-group',
+        queryName: 'Fetch',
+        type: 'Fetch',
+        description: '',
+        operation: 'Fetch',
+        totalDuration: totalFetchTimeNanos / 1000000,
+        time_ms: totalFetchTimeNanos / 1000000,
+        percentage: 100,
+        children: fetchPhases.map((f, i) => transformFetchPhase(f, i, totalFetchTimeNanos)),
+      }] : [];
+      return { queries: queryChild, aggs: aggChild, fetch: fetchChild };
     } catch (error) {
       console.error('[ProfilerQueries] Error extracting queries/aggregations:', error);
-      return { queries: [], aggs: [] };
+      return { queries: [], aggs: [], fetch: [] };
     }
   }, []);
 
   useEffect(() => {
-    const { queries, aggs } = processData(data);
+    const { queries, aggs, fetch } = processData(data);
     setProcessedQueryData(queries);
     setProcessedAggData(aggs);
+    setProcessedFetchData(fetch);
     // Reset expanded nodes when new data is loaded
     setExpandedNodes({});
   }, [data, processData]);
@@ -339,7 +423,11 @@ const ProfilerQueries = ({
 
   // Automatically select the first node in the shown hierarchy
   useEffect(() => {
-    const dataList = showHierarchy === 'query' ? processedQueryData : processedAggData;
+    const dataList = showHierarchy === 'query'
+        ? processedQueryData
+        : showHierarchy === 'agg'
+            ? processedAggData
+            : processedFetchData;
     if (dataList.length > 0 && dataList[0].children.length > 0 && !selectedProfileId) {
       // Find the first leaf node in the hierarchy
       const findFirstLeaf = (nodes) => {
@@ -358,7 +446,7 @@ const ProfilerQueries = ({
         setSelectedProfileId(firstNode.id);
       }
     }
-  }, [showHierarchy, processedQueryData, processedAggData, selectedProfileId]);
+  }, [showHierarchy, processedQueryData, processedAggData, processedFetchData, selectedProfileId]);
     
   // Expand/collapse logic
   const toggleExpand = (nodeId) => {
@@ -483,6 +571,8 @@ const ProfilerQueries = ({
   // Layout: two columns with tabs
   const hasQueryData = processedQueryData.length > 0 && processedQueryData[0].children.length > 0;
   const hasAggData = processedAggData.length > 0 && processedAggData[0].children.length > 0;
+  const hasFetchData = processedFetchData.length > 0 && processedFetchData[0].children.length > 0;
+
   return (
     <div
       className="profiler-queries-clean-layout"
@@ -493,7 +583,7 @@ const ProfilerQueries = ({
         className="profiler-queries-left-panel"
         style={{ width: leftPanelWidth, minWidth: 180, maxWidth: 600, height: '100%', minHeight: 0, boxSizing: 'border-box', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
       >
-        {hasQueryData || hasAggData ? (
+        {hasQueryData || hasAggData || hasFetchData ? (
           <>
             <div className="query-tabs">
               <button
@@ -511,6 +601,15 @@ const ProfilerQueries = ({
                   Aggregations
                 </button>
               )}
+              {hasFetchData && (
+                  <button
+                      className={`query-tab${showHierarchy === 'fetch' ? ' active' : ''}`}
+                      onClick={() => setShowHierarchy('fetch')}
+                      disabled={!hasFetchData}
+                  >
+                    Fetch
+                  </button>
+              )}
             </div>
             {showHierarchy === 'query' && hasQueryData && (
               <div className="query-hierarchy-container" style={{ flex: 1, overflowY: 'auto', height: '100%', minHeight: 0 }}>
@@ -521,6 +620,11 @@ const ProfilerQueries = ({
               <div className="query-hierarchy-container" style={{ flex: 1, overflowY: 'auto', height: '100%', minHeight: 0 }}>
                 {renderHierarchy(processedAggData[0].children)}
               </div>
+            )}
+            {showHierarchy === 'fetch' && hasFetchData && (
+                <div className="query-hierarchy-container" style={{ flex: 1, overflowY: 'auto', height: '100%', minHeight: 0 }}>
+                  {renderHierarchy(processedFetchData[0].children)}
+                </div>
             )}
           </>
         ) : null}
@@ -538,17 +642,23 @@ const ProfilerQueries = ({
         className="profiler-queries-right-panel"
         style={{ flex: 1, minWidth: 0, height: '100%', minHeight: 0, boxSizing: 'border-box', overflowY: 'auto' }}
       >
-        {hasQueryData || hasAggData ? (
+        {hasQueryData || hasAggData || hasFetchData ? (
           selectedProfileId ? (
             <QueryDetail
               query={findNodeById(
-                showHierarchy === 'query' ? (processedQueryData[0]?.children || []) : (processedAggData[0]?.children || []),
+                  showHierarchy === 'query'
+                      ? (processedQueryData[0]?.children || [])
+                      : showHierarchy === 'agg'
+                          ? (processedAggData[0]?.children || [])
+                          : (processedFetchData[0]?.children || []),
                 selectedProfileId
               )}
               rootId={
                 showHierarchy === 'query'
                   ? processedQueryData[0]?.id
-                  : processedAggData[0]?.id
+                    : showHierarchy === 'agg'
+                        ? processedAggData[0]?.id
+                        : processedFetchData[0]?.id
               }
               compareQuery={profileToCompare}
               compareMode={compareMode}

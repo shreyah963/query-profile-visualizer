@@ -148,16 +148,19 @@ const ProfilerComparisonResults = ({ profiles, comparisonType, onClose }) => {
       
       children1.forEach((child1, index) => {
         const child2 = children2[index];
-        if (child1?.breakdown && child2?.breakdown) {
-          compareObjects(child1.breakdown, child2.breakdown, {
-            path: `${parentPath} → Child Query`,
-            queryType: child1.type,
-            description: child1.description
-          });
-        }
-        // Recursively compare nested children
-        if (child1.children && child2.children) {
-          compareChildQueries(child1.children, child2.children, `${parentPath} → ${child1.type}`);
+        // Only proceed if both children exist
+        if (child1 && child2) {
+          if (child1?.breakdown && child2?.breakdown) {
+            compareObjects(child1.breakdown, child2.breakdown, {
+              path: `${parentPath} → Child Query`,
+              queryType: child1.type,
+              description: child1.description
+            });
+          }
+          // Recursively compare nested children
+          if (child1.children && child2.children) {
+            compareChildQueries(child1.children, child2.children, `${parentPath} → ${child1.type}`);
+          }
         }
       });
     };

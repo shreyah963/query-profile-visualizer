@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 const ShardVisualization = ({ profileData, onShardSelect }) => {
   const [topN, setTopN] = useState(5);
   const [topNAgg, setTopNAgg] = useState(5);
+  const [topNFetch, setTopNFetch] = useState(5);
   
   // Calculate execution times for each shard
   const shardMetrics = useMemo(() => {
@@ -28,6 +29,12 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
         return sum + (agg.time_in_nanos || 0);
       }, 0) || 0;
 
+      // Fetch phase time
+      const fetchTime = (shard.fetch || shard.searches?.[0]?.fetch || []).reduce(
+          (sum, f) => sum + (f.time_in_nanos || 0),
+          0
+      );
+
       // Log the components for debugging
       console.log('Time components for shard', index, {
         queriesTime: searchTime / 1000000,
@@ -40,8 +47,9 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
       return {
         id: shard.id || `shard-${index}`,
         name: shard.id || `Shard ${index + 1}`,
-        searchTime: (searchTime + rewriteTime + collectorsTime) / 1000000, // Convert to milliseconds
-        aggTime: aggTime / 1000000, // Convert to milliseconds
+        searchTime: (searchTime + rewriteTime + collectorsTime) / 1000000,
+        aggTime: aggTime / 1000000,
+        fetchTime: fetchTime / 1000000,
         index
       };
     });
@@ -51,6 +59,11 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
   const hasAggregations = useMemo(() => 
     shardMetrics.some(shard => shard.aggTime > 0),
     [shardMetrics]
+  );
+
+  const hasFetch = useMemo(() =>
+          shardMetrics.some(shard => shard.fetchTime > 0),
+      [shardMetrics]
   );
 
   // Sort and get top N shards for each metric
@@ -66,9 +79,16 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
     return topNAgg === 'all' ? sortedShards : sortedShards.slice(0, topNAgg);
   }, [shardMetrics, topNAgg]);
 
+  const topFetchShards = useMemo(() => {
+    const shardsWithFetch = shardMetrics.filter(shard => shard.fetchTime > 0);
+    const sortedShards = [...shardsWithFetch].sort((a, b) => b.fetchTime - a.fetchTime);
+    return topNFetch === 'all' ? sortedShards : sortedShards.slice(0, topNFetch);
+  }, [shardMetrics, topNFetch]);
+
   // Calculate max time for scaling
   const maxSearchTime = Math.max(...topSearchShards.map(s => s.searchTime));
   const maxAggTime = Math.max(...topAggShards.map(s => s.aggTime));
+  const maxFetchTime = Math.max(...topFetchShards.map(s => s.fetchTime));
 
   const handleShardClick = (shardIndex) => {
     onShardSelect(shardIndex);
@@ -117,6 +137,49 @@ const ShardVisualization = ({ profileData, onShardSelect }) => {
             ))}
           </div>
         </div>
+
+        {hasFetch && (
+            <div className="shard-chart">
+              <div className="shard-controls">
+                <label htmlFor="top-n-fetch-select">Show: </label>
+                <select
+                    id="top-n-fetch-select"
+                    value={topNFetch}
+                    onChange={(e) => setTopNFetch(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                    className="top-n-select"
+                >
+                  <option value="all">All Shards</option>
+                  <option value={5}>Top 5</option>
+                  <option value={10}>Top 10</option>
+                  <option value={20}>Top 20</option>
+                  <option value={50}>Top 50</option>
+                </select>
+              </div>
+              <h3>{topNFetch === 'all' ? 'All Shards' : `Top ${topNFetch} Shards`} by Fetch Time</h3>
+              <div className="chart-container">
+                {topFetchShards.map((shard) => (
+                    <div
+                        key={`fetch-${shard.id}`}
+                        className="chart-bar-container"
+                        onClick={() => handleShardClick(shard.index)}
+                        title={`${shard.name}: ${shard.fetchTime.toFixed(2)}ms`}
+                    >
+                      <div className="bar-label">{shard.name}</div>
+                      <div className="bar-wrapper">
+                        <div
+                            className="bar"
+                            style={{
+                              width: `${(shard.fetchTime / maxFetchTime) * 100}%`,
+                              backgroundColor: '#285badcc'
+                            }}
+                        />
+                        <div className="bar-value">{shard.fetchTime.toFixed(2)}ms</div>
+                      </div>
+                    </div>
+                ))}
+              </div>
+            </div>
+        )}
 
         {hasAggregations && (
           <div className="shard-chart">

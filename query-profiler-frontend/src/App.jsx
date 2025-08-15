@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import MainLayout from './layouts/MainLayout';
-import ProfilerDashboard from './components/features/ProfilerDashboard/MainDashboard/ProfilerDashboard';
+import MainLayout from './layouts/MainLayout.jsx';
+import ProfilerDashboard from './components/features/ProfilerDashboard/MainDashboard/ProfilerDashboard.jsx';
 import { ERROR_MESSAGES, DEBUG } from './config/constants';
 import './App.css'
 
