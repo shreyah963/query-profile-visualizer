@@ -15,9 +15,9 @@ phases:
   build:
     commands:
       - echo Building the React application...
-      - cd query-profiler-frontend && export REACT_APP_API_URL=$API_URL && npm run build
+      - export REACT_APP_API_URL=$API_URL && npm run build
       - echo Running tests...
-      - cd query-profiler-frontend && npm test -- --coverage --ci --watchAll=false
+      - npm test -- --coverage --ci --watchAll=false
 
   post_build:
     commands:
