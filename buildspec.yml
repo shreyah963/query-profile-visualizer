@@ -1,0 +1,36 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+    commands:
+      - echo Installing global dependencies...
+
+  pre_build:
+    commands:
+      - echo Installing dependencies...
+      - cd query-profiler-frontend
+      - npm install
+
+  build:
+    commands:
+      - echo Running tests...
+      - cd query-profiler-frontend
+      - npm test -- --coverage --ci --watchAll=false
+      - echo Building the React application...
+      - export REACT_APP_API_URL=$API_URL
+      - npm run build
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+
+artifacts:
+  files:
+    - '**/*'
+  base-directory: 'query-profiler-frontend/build'
+
+cache:
+  paths:
+    - 'query-profiler-frontend/node_modules/**/*'
