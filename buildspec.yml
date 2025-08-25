@@ -10,11 +10,16 @@ phases:
   pre_build:
     commands:
       - echo Installing dependencies...
+      - echo "Current directory:" && pwd
+      - echo "Directory contents:" && ls -la
+      - echo "Checking if query-profiler-frontend exists:" && ls -la query-profiler-frontend || echo "Directory not found"
       - cd query-profiler-frontend && npm install
 
   build:
     commands:
       - echo Running tests...
+      - echo "Current directory:" && pwd
+      - echo "Directory contents:" && ls -la
       - cd query-profiler-frontend && npm test -- --coverage --ci --watchAll=false
       - echo Building the React application...
       - cd query-profiler-frontend && export REACT_APP_API_URL=$API_URL && npm run build
