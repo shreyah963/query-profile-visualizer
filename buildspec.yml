@@ -20,9 +20,9 @@ phases:
       - echo Running tests...
       - echo "Current directory:" && pwd
       - echo "Directory contents:" && ls -la
-      - cd query-profiler-frontend && npm test -- --coverage --ci --watchAll=false
+      - npm test -- --coverage --ci --watchAll=false
       - echo Building the React application...
-      - cd query-profiler-frontend && export REACT_APP_API_URL=$API_URL && npm run build
+      - export REACT_APP_API_URL=$API_URL && npm run build
 
   post_build:
     commands:
