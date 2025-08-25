@@ -10,17 +10,14 @@ phases:
   pre_build:
     commands:
       - echo Installing dependencies...
-      - cd query-profiler-frontend
-      - npm install
+      - cd query-profiler-frontend && npm install
 
   build:
     commands:
       - echo Running tests...
-      - cd query-profiler-frontend
-      - npm test -- --coverage --ci --watchAll=false
+      - cd query-profiler-frontend && npm test -- --coverage --ci --watchAll=false
       - echo Building the React application...
-      - export REACT_APP_API_URL=$API_URL
-      - npm run build
+      - cd query-profiler-frontend && export REACT_APP_API_URL=$API_URL && npm run build
 
   post_build:
     commands:
