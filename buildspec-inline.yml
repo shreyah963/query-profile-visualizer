@@ -1,0 +1,148 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: us-east-1
+    AWS_ACCOUNT_ID: "869620365293"
+    IMAGE_REPO_NAME: query-profiler-frontend
+    IMAGE_TAG: latest
+    EKS_CLUSTER_NAME: query-profiler-dashboard
+    EKS_KUBECTL_ROLE_ARN: arn:aws:iam::869620365293:role/CodeBuildKubectlRole
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+    commands:
+      - echo Installing global dependencies...
+
+  pre_build:
+    commands:
+      - echo Installing dependencies...
+      - cd query-profiler-frontend && npm install
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+      - echo Building the React application...
+      - export REACT_APP_API_URL=$API_URL && npm run build
+      - echo Running tests...
+      - npm test -- --coverage --ci --watchAll=false
+      - echo Creating Dockerfile...
+      - |
+        cat > Dockerfile << 'EOF'
+        FROM node:18-alpine AS builder
+        WORKDIR /app
+        COPY package*.json ./
+        RUN npm ci --only=production
+        COPY . .
+        RUN npm run build
+        
+        FROM nginx:alpine
+        COPY --from=builder /app/build /usr/share/nginx/html
+        RUN echo 'events { worker_connections 1024; } http { include /etc/nginx/mime.types; default_type application/octet-stream; sendfile on; keepalive_timeout 65; gzip on; gzip_vary on; gzip_min_length 1024; gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json; server { listen 80; server_name localhost; root /usr/share/nginx/html; index index.html index.htm; location / { try_files $uri $uri/ /index.html; } location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ { expires 1y; add_header Cache-Control "public, immutable"; } add_header X-Frame-Options "SAMEORIGIN" always; add_header X-Content-Type-Options "nosniff" always; add_header X-XSS-Protection "1; mode=block" always; location /health { access_log off; return 200 "healthy\n"; add_header Content-Type text/plain; } } }' > /etc/nginx/nginx.conf
+        EXPOSE 80
+        HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD curl -f http://localhost/ || exit 1
+        CMD ["nginx", "-g", "daemon off;"]
+        EOF
+      - echo Building the Docker image...
+      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $REPOSITORY_URI:$IMAGE_TAG
+      - echo Pushing the Docker image...
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Deploying to EKS...
+      - cd ..
+      - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $EKS_CLUSTER_NAME --role-arn $EKS_KUBECTL_ROLE_ARN
+      - |
+        cat > k8s-namespace.yaml << 'EOF'
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: query-profiler
+        EOF
+      - |
+        cat > k8s-deployment.yaml << 'EOF'
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: query-profiler-frontend
+          namespace: query-profiler
+          labels:
+            app: query-profiler-frontend
+        spec:
+          replicas: 2
+          selector:
+            matchLabels:
+              app: query-profiler-frontend
+          template:
+            metadata:
+              labels:
+                app: query-profiler-frontend
+            spec:
+              containers:
+              - name: query-profiler-frontend
+                image: 869620365293.dkr.ecr.us-east-1.amazonaws.com/query-profiler-frontend:latest
+                ports:
+                - containerPort: 80
+                resources:
+                  requests:
+                    memory: "64Mi"
+                    cpu: "50m"
+                  limits:
+                    memory: "128Mi"
+                    cpu: "100m"
+                livenessProbe:
+                  httpGet:
+                    path: /
+                    port: 80
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                readinessProbe:
+                  httpGet:
+                    path: /
+                    port: 80
+                  initialDelaySeconds: 5
+                  periodSeconds: 5
+        EOF
+      - |
+        cat > k8s-service.yaml << 'EOF'
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: query-profiler-frontend-service
+          namespace: query-profiler
+          labels:
+            app: query-profiler-frontend
+        spec:
+          type: LoadBalancer
+          ports:
+          - name: http
+            port: 80
+            targetPort: 80
+            protocol: TCP
+          selector:
+            app: query-profiler-frontend
+        EOF
+      - kubectl apply -f k8s-namespace.yaml
+      - kubectl apply -f k8s-deployment.yaml
+      - kubectl apply -f k8s-service.yaml
+      - kubectl set image deployment/query-profiler-frontend query-profiler-frontend=$REPOSITORY_URI:$IMAGE_TAG -n query-profiler
+      - kubectl rollout status deployment/query-profiler-frontend -n query-profiler
+      - kubectl get services -n query-profiler
+
+artifacts:
+  files:
+    - query-profiler-frontend/build/**/*
+
+cache:
+  paths:
+    - 'query-profiler-frontend/node_modules/**/*'
