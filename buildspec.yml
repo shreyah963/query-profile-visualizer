@@ -44,8 +44,7 @@ phases:
       - aws ssm put-parameter --name "/query-profiler/latest-image-uri" --value "$REPOSITORY_URI:$IMAGE_TAG" --overwrite
       - echo Triggering infrastructure deployment...
       - DEPLOY_BUILD_ID=$(aws codebuild start-build --project-name query-profiler-infrastructure-deploy --environment-variables-override name=IMAGE_URI,value=$REPOSITORY_URI:$IMAGE_TAG --query 'build.id' --output text)
-      - echo "Infrastructure deployment started with build ID: $DEPLOY_BUILD_ID"
-      - echo "You can monitor the deployment at: https://console.aws.amazon.com/codesuite/codebuild/projects/query-profiler-infrastructure-deploy/build/$DEPLOY_BUILD_ID"
+      - echo "Infrastructure deployment started with build ID $DEPLOY_BUILD_ID"
 
 artifacts:
   files:
