@@ -1,9 +1,19 @@
 version: 0.2
 
+env:
+  variables:
+    AWS_DEFAULT_REGION: us-east-1
+    AWS_ACCOUNT_ID: "869620365293"
+    IMAGE_REPO_NAME: query-profiler-frontend
+    IMAGE_TAG: latest
+    EKS_CLUSTER_NAME: query-profiler-dashboard
+    EKS_KUBECTL_ROLE_ARN: arn:aws:iam::869620365293:role/CodeBuildKubectlRole
+
 phases:
   install:
     runtime-versions:
       nodejs: 18
+      docker: 20
     commands:
       - echo Installing global dependencies...
 
@@ -14,19 +24,38 @@ phases:
 
   build:
     commands:
+      - echo Build started on `date`
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
       - echo Building the React application...
       - export REACT_APP_API_URL=$API_URL && npm run build
       - echo Running tests...
       - npm test -- --coverage --ci --watchAll=false
+      - echo Building the Docker image...
+      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $REPOSITORY_URI:$IMAGE_TAG
 
   post_build:
     commands:
       - echo Build completed on `date`
+      - echo Pushing the Docker image...
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - echo Deploying to EKS...
+      - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $EKS_CLUSTER_NAME --role-arn $EKS_KUBECTL_ROLE_ARN
+      - kubectl apply -f k8s/namespace.yaml
+      - kubectl apply -f k8s/deployment.yaml
+      - kubectl apply -f k8s/service.yaml
+      - kubectl set image deployment/query-profiler-frontend query-profiler-frontend=$REPOSITORY_URI:$IMAGE_TAG -n query-profiler
+      - kubectl rollout status deployment/query-profiler-frontend -n query-profiler
+      - kubectl get services -n query-profiler
 
 artifacts:
   files:
-    - '**/*'
-  base-directory: 'query-profiler-frontend/build'
+    - k8s/*
+    - query-profiler-frontend/build/**/*
 
 cache:
   paths:
