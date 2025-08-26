@@ -1,0 +1,19 @@
+{
+    "transforms": [
+        {
+            "id": "frontend-assets",
+            "transformer": "Lambda",
+            "targetPackage": "QueryProfilerFrontend",
+            "parameters": {
+                "runtime": "nodejs18.x",
+                "handler": "index.handler",
+                "timeout": 300,
+                "memorySize": 512
+            }
+        }
+    ],
+    "publisher": "CloudFormation",
+    "publisherParameters": {
+        "bucketPrefix": "query-profiler-assets"
+    }
+}
