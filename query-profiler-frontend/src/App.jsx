@@ -4,7 +4,7 @@ import ProfilerDashboard from './components/features/ProfilerDashboard/MainDashb
 import { ERROR_MESSAGES, DEBUG } from './config/constants';
 import './App.css'
 
-// Test CI/CD pipeline trigger
+// Test CI/CD pipeline trigger - webhook test
 
 // Error boundary component to catch rendering errors
 class ErrorBoundary extends React.Component {
