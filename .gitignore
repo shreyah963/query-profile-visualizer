@@ -1,18 +1,6 @@
-# Infrastructure and deployment files
-aws-infrastructure/
-k8s/
-setup-infrastructure.sh
-configure-eks-auth.sh
-cluster-config.yaml
-codebuild-project.json
-buildspec.yml
-
 # Docker files
 query-profiler-frontend/Dockerfile
 query-profiler-frontend/nginx.conf
-
-# CDK files
-cdk/
 
 # Dependencies
 node_modules/
@@ -40,3 +28,4 @@ dist/
 # OS files
 .DS_Store
 Thumbs.db
+
