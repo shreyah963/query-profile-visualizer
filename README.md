@@ -1,5 +1,7 @@
 # Query Profile Visualizer
 
+Dashboard link: https://d9xl5azda3za8.cloudfront.net/
+
 ## Getting Started
 
 To run the Query Profiler Frontend locally:
