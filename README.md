@@ -29,4 +29,4 @@ To run the Query Profiler Frontend locally:
 https://github.com/user-attachments/assets/65b820e9-926a-49ac-9e0d-95abf7d516b5
 
 ---
-
+.
