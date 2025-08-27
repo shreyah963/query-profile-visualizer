@@ -59,85 +59,13 @@ phases:
   post_build:
     commands:
       - echo Build completed on `date`
-      - echo Deploying to EKS...
-      - cd ..
-      - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $EKS_CLUSTER_NAME --role-arn $EKS_KUBECTL_ROLE_ARN
-      - |
-        cat > k8s-namespace.yaml << 'EOF'
-        apiVersion: v1
-        kind: Namespace
-        metadata:
-          name: query-profiler
-        EOF
-      - |
-        cat > k8s-deployment.yaml << 'EOF'
-        apiVersion: apps/v1
-        kind: Deployment
-        metadata:
-          name: query-profiler-frontend
-          namespace: query-profiler
-          labels:
-            app: query-profiler-frontend
-        spec:
-          replicas: 2
-          selector:
-            matchLabels:
-              app: query-profiler-frontend
-          template:
-            metadata:
-              labels:
-                app: query-profiler-frontend
-            spec:
-              containers:
-              - name: query-profiler-frontend
-                image: 869620365293.dkr.ecr.us-east-1.amazonaws.com/query-profiler-frontend:latest
-                ports:
-                - containerPort: 80
-                resources:
-                  requests:
-                    memory: "64Mi"
-                    cpu: "50m"
-                  limits:
-                    memory: "128Mi"
-                    cpu: "100m"
-                livenessProbe:
-                  httpGet:
-                    path: /
-                    port: 80
-                  initialDelaySeconds: 30
-                  periodSeconds: 10
-                readinessProbe:
-                  httpGet:
-                    path: /
-                    port: 80
-                  initialDelaySeconds: 5
-                  periodSeconds: 5
-        EOF
-      - |
-        cat > k8s-service.yaml << 'EOF'
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: query-profiler-frontend-service
-          namespace: query-profiler
-          labels:
-            app: query-profiler-frontend
-        spec:
-          type: LoadBalancer
-          ports:
-          - name: http
-            port: 80
-            targetPort: 80
-            protocol: TCP
-          selector:
-            app: query-profiler-frontend
-        EOF
-      - kubectl apply -f k8s-namespace.yaml
-      - kubectl apply -f k8s-deployment.yaml
-      - kubectl apply -f k8s-service.yaml
-      - kubectl set image deployment/query-profiler-frontend query-profiler-frontend=$REPOSITORY_URI:$IMAGE_TAG -n query-profiler
-      - kubectl rollout status deployment/query-profiler-frontend -n query-profiler
-      - kubectl get services -n query-profiler
+      - echo Image pushed to $REPOSITORY_URI:$IMAGE_TAG
+      - echo "IMAGE_URI=$REPOSITORY_URI:$IMAGE_TAG" > image_uri.txt
+      - echo Storing image URI in Parameter Store...
+      - aws ssm put-parameter --name "/query-profiler/latest-image-uri" --value "$REPOSITORY_URI:$IMAGE_TAG" --type String --overwrite
+      - echo Triggering infrastructure deployment...
+      - DEPLOY_BUILD_ID=$(aws codebuild start-build --project-name query-profiler-infrastructure-deploy --environment-variables-override name=IMAGE_URI,value=$REPOSITORY_URI:$IMAGE_TAG --query 'build.id' --output text)
+      - echo "Infrastructure deployment started with build ID $DEPLOY_BUILD_ID"
 
 artifacts:
   files:
