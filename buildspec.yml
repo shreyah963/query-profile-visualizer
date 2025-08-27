@@ -33,21 +33,15 @@ phases:
       - export REACT_APP_API_URL=$API_URL && npm run build
       - echo Running tests...
       - npm test -- --coverage --ci --watchAll=false
+      - cd ..
       - echo Creating Dockerfile...
       - |
-        cat > Dockerfile << 'EOF'
-        FROM node:18-alpine AS builder
-        WORKDIR /app
-        COPY package*.json ./
-        RUN npm ci --only=production
-        COPY . .
-        RUN npm run build
-        
+        cat > query-profiler-frontend/Dockerfile << 'EOF'
         FROM nginx:alpine
-        COPY --from=builder /app/build /usr/share/nginx/html
+        COPY build /usr/share/nginx/html
         RUN echo 'events { worker_connections 1024; } http { include /etc/nginx/mime.types; default_type application/octet-stream; sendfile on; keepalive_timeout 65; gzip on; gzip_vary on; gzip_min_length 1024; gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json; server { listen 80; server_name localhost; root /usr/share/nginx/html; index index.html index.htm; location / { try_files $uri $uri/ /index.html; } location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ { expires 1y; add_header Cache-Control "public, immutable"; } add_header X-Frame-Options "SAMEORIGIN" always; add_header X-Content-Type-Options "nosniff" always; add_header X-XSS-Protection "1; mode=block" always; location /health { access_log off; return 200 "healthy\n"; add_header Content-Type text/plain; } } }' > /etc/nginx/nginx.conf
         EXPOSE 80
-        HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD curl -f http://localhost/ || exit 1
+        HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
         CMD ["nginx", "-g", "daemon off;"]
         EOF
       - echo Building the Docker image...
