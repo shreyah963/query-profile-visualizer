@@ -41,7 +41,7 @@ phases:
       - echo Query profiler frontend contents
       - ls -la query-profiler-frontend/
       - echo Creating simple Dockerfile...
-      - echo 'FROM nginx:alpine' > query-profiler-frontend/Dockerfile
+      - echo 'FROM public.ecr.aws/nginx/nginx:alpine' > query-profiler-frontend/Dockerfile
       - echo 'COPY build /usr/share/nginx/html' >> query-profiler-frontend/Dockerfile
       - echo 'EXPOSE 80' >> query-profiler-frontend/Dockerfile
       - echo 'CMD ["nginx", "-g", "daemon off;"]' >> query-profiler-frontend/Dockerfile
